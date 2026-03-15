@@ -1,5 +1,6 @@
 """
-乐谱 IR：measures、events、key（与执行方案 §7 一致）。
+乐谱 IR：events、key。
+新流程：flat 事件列表，无 measures 层级。
 """
 from __future__ import annotations
 
@@ -21,54 +22,26 @@ class NoteEvent(BaseModel):
     type: Literal["note"] = "note"
     degree: int                   # 1-7
     accidental: str = "natural"   # "natural" | "sharp" | "flat"
-    octave_shift: int = 0         # +1 high dot, -1 low dot
-    duration_marks: list[str] = Field(default_factory=list)
-    grace: bool = False
+    octave_shift: int = 0         # +1 高八度点, -1 低八度点
     bbox: Optional[list[int]] = None
     confidence: float = 1.0
-    decoded_pitch_pc: Optional[int] = None
-    decoded_pitch_octave: Optional[int] = None
-    transposed_pitch_pc: Optional[int] = None
-    transposed_pitch_octave: Optional[int] = None
-    render_tokens: list[str] = Field(default_factory=list)
 
 
 class RestEvent(BaseModel):
     id: str
     type: Literal["rest"] = "rest"
-    symbol: int = 0               # 0 = standard rest
     bbox: Optional[list[int]] = None
     confidence: float = 1.0
-
-
-class KeyChangeEvent(BaseModel):
-    id: str
-    type: Literal["key_change"] = "key_change"
-    label: str
-    tonic: str
-    bbox: Optional[list[int]] = None
-    confidence: float = 1.0
-
-
-class BarlineEvent(BaseModel):
-    id: str
-    type: Literal["barline"] = "barline"
-    bbox: Optional[list[int]] = None
 
 
 Event = Annotated[
-    Union[NoteEvent, RestEvent, KeyChangeEvent, BarlineEvent],
+    Union[NoteEvent, RestEvent],
     Field(discriminator="type"),
 ]
-
-
-class Measure(BaseModel):
-    number: int
-    events: list[Event] = Field(default_factory=list)
 
 
 class ScoreIR(BaseModel):
     score_id: str
     source_key: KeyInfo
     target_key: KeyInfo
-    measures: list[Measure] = Field(default_factory=list)
+    events: list[Event] = Field(default_factory=list)

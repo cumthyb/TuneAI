@@ -1,10 +1,20 @@
 """
-局部擦除、字形绘制、原位贴回、导出 PNG。
+像素回写（第五步，本地）。
+
+职责分工：
+  OpenCV  — 图像解码、白色矩形擦除、PNG 编码输出
+  Pillow  — 字体加载、文字渲染（draw.text）
+
+流程（每个发生变化的 bbox）：
+  1. OpenCV cv2.rectangle 白色填充覆盖原数字
+  2. 将当前帧转为 Pillow Image
+  3. Pillow ImageFont + ImageDraw.text 在原位置渲染新数字
+  4. 将结果转回 numpy 数组继续处理
+  5. 所有 bbox 处理完毕后，OpenCV cv2.imencode 输出 PNG bytes
 """
 from __future__ import annotations
 
 import io
-from typing import Optional
 
 import cv2
 import numpy as np
@@ -12,99 +22,79 @@ from PIL import Image, ImageDraw, ImageFont
 
 from tuneai.schemas.score_ir import NoteEvent, ScoreIR
 
-# 升降号文字映射（使用 Unicode 字符或 ASCII 替代）
 _ACC_SYMBOL = {"sharp": "#", "flat": "b", "natural": ""}
+_WHITE_BGR = (255, 255, 255)
+_BLACK_RGB = (0, 0, 0)
 
 
 def render_output(
-    original_image: np.ndarray,
+    original_image_bytes: bytes,
     original_score: ScoreIR,
     transposed_score: ScoreIR,
 ) -> bytes:
     """
-    对所有发生变化的音符区域：
-    1. 扩边 2-4px
-    2. 背景填充（局部均值或白色）
-    3. 在 Pillow 画布上用默认字体绘制新字符
-    4. 按原 bbox 基线贴回
-    5. 导出 PNG bytes
+    对所有发生变化的音符 bbox 执行像素回写，返回 PNG bytes。
+    非变化区域保持原图不动。
     """
-    if original_image is None:
-        # 如果原图解码失败，返回空白图
-        blank = Image.new("RGB", (400, 200), color=(255, 255, 255))
-        buf = io.BytesIO()
-        blank.save(buf, format="PNG")
-        return buf.getvalue()
+    # ── OpenCV：解码原图 ────────────────────────────────────────────────────
+    nparr = np.frombuffer(original_image_bytes, dtype=np.uint8)
+    img_bgr = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
-    # 转为 Pillow Image（RGB）
-    if len(original_image.shape) == 2:
-        img_rgb = cv2.cvtColor(original_image, cv2.COLOR_GRAY2RGB)
-    else:
-        img_rgb = cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB)
+    if img_bgr is None:
+        _, buf = cv2.imencode(".png", np.full((200, 400, 3), 255, dtype=np.uint8))
+        return buf.tobytes()
 
+    # 收集需要回写的 (bbox, new_text) 对
+    patches: list[tuple[tuple[int, int, int, int], str]] = []
+    for ev_orig, ev_trans in zip(original_score.events, transposed_score.events):
+        if not isinstance(ev_orig, NoteEvent) or not isinstance(ev_trans, NoteEvent):
+            continue
+        if ev_orig.bbox is None or len(ev_orig.bbox) < 4:
+            continue
+        if (ev_orig.degree == ev_trans.degree
+                and ev_orig.accidental == ev_trans.accidental
+                and ev_orig.octave_shift == ev_trans.octave_shift):
+            continue
+
+        acc = _ACC_SYMBOL.get(ev_trans.accidental, "")
+        text = f"{acc}{ev_trans.degree}"
+        patches.append((tuple(ev_orig.bbox), text))  # type: ignore[arg-type]
+
+    if not patches:
+        # 无变化，直接重编码返回
+        _, buf = cv2.imencode(".png", img_bgr)
+        return buf.tobytes()
+
+    # ── OpenCV：批量白色填充擦除所有变化区域 ──────────────────────────────
+    pad = 3
+    h, w = img_bgr.shape[:2]
+    for (bx, by, bw, bh), _ in patches:
+        x0 = max(0, bx - pad)
+        y0 = max(0, by - pad)
+        x1 = min(w, bx + bw + pad)
+        y1 = min(h, by + bh + pad)
+        cv2.rectangle(img_bgr, (x0, y0), (x1, y1), _WHITE_BGR, thickness=-1)
+
+    # ── Pillow：文字渲染 ────────────────────────────────────────────────────
+    # BGR → RGB，转为 Pillow Image
+    img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
     pil_img = Image.fromarray(img_rgb)
     draw = ImageDraw.Draw(pil_img)
 
-    # 构建 (measure_idx, event_idx) → transposed event 映射
-    for m_orig, m_trans in zip(original_score.measures, transposed_score.measures):
-        for ev_orig, ev_trans in zip(m_orig.events, m_trans.events):
-            if not isinstance(ev_orig, NoteEvent) or not isinstance(ev_trans, NoteEvent):
-                continue
-            if ev_orig.bbox is None or len(ev_orig.bbox) < 4:
-                continue
+    for (bx, by, bw, bh), text in patches:
+        font_size = max(8, int(bh * 0.85))
+        font = _load_font(font_size)
+        draw.text((bx, by), text, fill=_BLACK_RGB, font=font)
 
-            # 判断是否有变化
-            orig_tokens = ev_orig.render_tokens
-            trans_tokens = ev_trans.render_tokens
-            if orig_tokens == trans_tokens and ev_orig.degree == ev_trans.degree:
-                continue
-
-            bx, by, bw, bh = ev_orig.bbox
-            pad = 3
-            x0 = max(0, bx - pad)
-            y0 = max(0, by - pad)
-            x1 = min(pil_img.width, bx + bw + pad)
-            y1 = min(pil_img.height, by + bh + pad)
-
-            # 采样背景色（区域四角均值）
-            bg_color = _sample_background(pil_img, x0, y0, x1, y1)
-
-            # 填充背景
-            draw.rectangle([x0, y0, x1, y1], fill=bg_color)
-
-            # 计算字体大小（根据 bbox 高度估算）
-            font_size = max(8, int(bh * 0.85))
-            try:
-                font = ImageFont.load_default(size=font_size)
-            except TypeError:
-                font = ImageFont.load_default()
-
-            # 组装文字
-            acc = _ACC_SYMBOL.get(ev_trans.accidental, "")
-            text = f"{acc}{ev_trans.degree}"
-            if ev_trans.octave_shift > 0:
-                text = "·" * ev_trans.octave_shift + text
-            elif ev_trans.octave_shift < 0:
-                text = text + "·" * abs(ev_trans.octave_shift)
-
-            # 在 bbox 中心绘制
-            draw.text((bx, by), text, fill=(0, 0, 0), font=font)
-
-    buf = io.BytesIO()
-    pil_img.save(buf, format="PNG")
-    return buf.getvalue()
+    # ── OpenCV：PNG 编码输出 ────────────────────────────────────────────────
+    result_bgr = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
+    _, buf = cv2.imencode(".png", result_bgr)
+    return buf.tobytes()
 
 
-def _sample_background(img: Image.Image, x0: int, y0: int, x1: int, y1: int) -> tuple:
-    """采样图像区域的背景色（四角像素均值）。"""
-    corners = []
-    for cx, cy in [(x0, y0), (x1 - 1, y0), (x0, y1 - 1), (x1 - 1, y1 - 1)]:
-        cx = max(0, min(cx, img.width - 1))
-        cy = max(0, min(cy, img.height - 1))
-        corners.append(img.getpixel((cx, cy)))
-
-    if not corners:
-        return (255, 255, 255)
-
-    avg = tuple(int(sum(c[i] for c in corners) / len(corners)) for i in range(3))
-    return avg
+def _load_font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    """加载指定大小的字体；不可用时回退到 Pillow 默认字体。"""
+    try:
+        return ImageFont.load_default(size=size)
+    except TypeError:
+        return ImageFont.load_default()

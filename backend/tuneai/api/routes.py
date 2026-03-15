@@ -62,7 +62,7 @@ async def transpose(
         log.info(f"transpose request: target_key={target_key}, size={len(image_bytes)}")
 
         try:
-            result = run_pipeline(image_bytes, target_key, request_id)
+            result = await run_pipeline(image_bytes, target_key, request_id)
         except PipelineError as e:
             return TransposeErrorResponse(
                 error_code=e.error_code,

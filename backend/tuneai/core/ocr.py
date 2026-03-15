@@ -1,99 +1,131 @@
 """
-PaddleOCR 封装，数字与调号文本，候选+bbox+置信度。
+阿里云 OCR 封装（第二步 B，线上）：全字符 bbox 识别。
+输入整张预处理图，输出所有字符的 bbox + 识别内容。
 """
 from __future__ import annotations
 
-import re
-from dataclasses import dataclass, field
-from typing import Optional
+import base64
+import io
+import json
+from dataclasses import dataclass
 
+import cv2
 import numpy as np
 
 from tuneai.logging_config import get_logger
 
-_ocr_instance = None
-_logger = None
-
-
-def _get_ocr():
-    global _ocr_instance
-    if _ocr_instance is None:
-        from tuneai.config import get_ocr_config
-        cfg = get_ocr_config()
-        from paddleocr import PaddleOCR
-        _ocr_instance = PaddleOCR(
-            use_angle_cls=False,
-            lang="ch",
-            use_gpu=cfg.get("use_gpu", False),
-            det_db_thresh=cfg.get("det_db_thresh", 0.3),
-            rec_batch_num=cfg.get("rec_batch_num", 6),
-            show_log=False,
-        )
-    return _ocr_instance
-
 
 @dataclass
-class OCRToken:
+class OcrChar:
     text: str
-    bbox: list[int]            # [x, y, w, h]
+    bbox: list[int]       # [x, y, w, h]
     confidence: float
 
 
-_KEY_PATTERN = re.compile(r"1\s*[=＝]\s*([A-G][#b♯♭]?)")
-_NOTE_PATTERN = re.compile(r"^[0-7]$")
-
-
-def run_ocr(image_region: np.ndarray) -> list[OCRToken]:
-    """PaddleOCR 封装；返回所有识别到的 token。"""
+def run_ocr(image: np.ndarray) -> list[OcrChar]:
+    """
+    调用阿里云 OCR，返回全字符识别结果列表。
+    失败时返回空列表（不抛异常），由调用方处理降级。
+    """
     log = get_logger("ocr")
-    ocr = _get_ocr()
 
-    try:
-        results = ocr.ocr(image_region, cls=False)
-    except Exception as e:
-        log.warning(f"OCR failed: {e}")
+    from tuneai.config import get_alibaba_ocr_config
+    cfg = get_alibaba_ocr_config()
+
+    if not cfg.get("access_key_id") or not cfg.get("access_key_secret"):
+        log.warning("alibaba_ocr: access_key 未配置，跳过 OCR")
         return []
 
-    tokens: list[OCRToken] = []
-    if not results or results[0] is None:
-        return tokens
+    # 编码图像为 PNG bytes
+    _, buf = cv2.imencode(".png", image)
+    image_bytes = buf.tobytes()
 
-    for line in results[0]:
-        if line is None:
-            continue
+    try:
+        from alibabacloud_ocr_api20210707 import models as ocr_models
+        from alibabacloud_ocr_api20210707.client import Client
+        from alibabacloud_tea_openapi import models as openapi_models
+
+        openapi_cfg = openapi_models.Config(
+            access_key_id=cfg.get("access_key_id", ""),
+            access_key_secret=cfg.get("access_key_secret", ""),
+            endpoint=cfg.get("endpoint", "ocr-api.cn-hangzhou.aliyuncs.com"),
+        )
+        client = Client(openapi_cfg)
+
+        request = ocr_models.RecognizeGeneralRequest(body=io.BytesIO(image_bytes))
+        response = client.recognize_general(request)
+
+        chars = _parse_response(response)
+        log.debug(f"alibaba_ocr: {len(chars)} chars recognized")
+        return chars
+
+    except Exception as e:
+        log.warning(f"alibaba_ocr 调用失败 ({type(e).__name__}: {e})")
+        return []
+
+
+def _parse_response(response) -> list[OcrChar]:
+    """
+    解析阿里云 OCR 响应。
+    阿里云 RecognizeGeneral 返回 body.data 为 JSON 字符串，
+    其中 blocks[] 包含每个文字区域的 text 和坐标。
+    """
+    chars: list[OcrChar] = []
+    try:
+        raw = getattr(response.body, "data", None) or ""
+        if not raw:
+            return chars
+
+        data = json.loads(raw) if isinstance(raw, str) else raw
+        blocks = data.get("blocks", [])
+
+        for block in blocks:
+            text = (block.get("text") or block.get("blockText") or "").strip()
+            if not text:
+                continue
+
+            confidence = float(block.get("confidence", 1.0))
+            bbox = _extract_bbox(block)
+            if bbox is None:
+                continue
+
+            # 对多字符 block 按字符拆分（每个字符用相同 bbox，精度受限）
+            for ch in text:
+                chars.append(OcrChar(text=ch, bbox=bbox, confidence=confidence))
+
+    except Exception as e:
+        get_logger("ocr").debug(f"_parse_response error: {e}")
+
+    return chars
+
+
+def _extract_bbox(block: dict) -> list[int] | None:
+    """从 block 中提取 [x, y, w, h]，兼容多种字段格式。"""
+    # 格式 A: blockCoordinate with pointXxx
+    coord = block.get("blockCoordinate")
+    if coord:
         try:
-            polygon, (text, conf) = line
-            # polygon: [[x1,y1],[x2,y2],[x3,y3],[x4,y4]]
-            xs = [p[0] for p in polygon]
-            ys = [p[1] for p in polygon]
-            x = int(min(xs))
-            y = int(min(ys))
-            w = int(max(xs) - min(xs))
-            h = int(max(ys) - min(ys))
-            tokens.append(OCRToken(text=text.strip(), bbox=[x, y, w, h], confidence=float(conf)))
-        except Exception as e:
-            log.debug(f"skip malformed OCR line: {e}")
+            xs = [coord[k]["x"] for k in ("pointTopLeft", "pointTopRight",
+                                           "pointBottomLeft", "pointBottomRight")]
+            ys = [coord[k]["y"] for k in ("pointTopLeft", "pointTopRight",
+                                           "pointBottomLeft", "pointBottomRight")]
+            return [int(min(xs)), int(min(ys)),
+                    int(max(xs) - min(xs)), int(max(ys) - min(ys))]
+        except Exception:
+            pass
 
-    return tokens
+    # 格式 B: textRectangle with x/y/width/height
+    rect = block.get("textRectangle")
+    if rect:
+        try:
+            return [int(rect["x"]), int(rect["y"]),
+                    int(rect["width"]), int(rect["height"])]
+        except Exception:
+            pass
 
+    # 格式 C: direct x/y/w/h fields
+    if all(k in block for k in ("x", "y", "w", "h")):
+        return [int(block["x"]), int(block["y"]),
+                int(block["w"]), int(block["h"])]
 
-def extract_key_signature(tokens: list[OCRToken]) -> Optional[OCRToken]:
-    """
-    在 tokens 中寻找调号（如 "1=C"、"1=G#"），
-    返回页首最高置信度匹配，或 None。
-    """
-    candidates = []
-    for tok in tokens:
-        m = _KEY_PATTERN.search(tok.text)
-        if m:
-            candidates.append(tok)
-
-    if not candidates:
-        return None
-    # 取置信度最高的（页首行优先可通过 y 坐标进一步过滤）
-    return max(candidates, key=lambda t: t.confidence)
-
-
-def extract_note_digits(tokens: list[OCRToken]) -> list[OCRToken]:
-    """过滤出单个 0-7 数字的 token（简谱音符）。"""
-    return [t for t in tokens if _NOTE_PATTERN.match(t.text)]
+    return None

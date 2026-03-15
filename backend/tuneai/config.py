@@ -1,5 +1,5 @@
 """
-从 config.json 加载配置：端口、API Key、LLM、OCR、流水线、日志等级等。
+从 config.json 加载配置：端口、API Key、Qwen-VL、阿里OCR、流水线、日志等。
 优先使用项目根目录的 config.json，不存在则用 config.example.json；敏感项可由环境变量覆盖。
 """
 import json
@@ -27,11 +27,7 @@ def _find_config() -> Path:
 def load_config() -> dict[str, Any]:
     path = _find_config()
     cfg = _load_json(path)
-    # 环境变量覆盖（常用于 API Key、端口等）
-    if api_keys := os.getenv("TUNEAI_OPENAI_API_KEY"):
-        cfg.setdefault("api_keys", {})["openai"] = api_keys
-    if api_keys := os.getenv("TUNEAI_ANTHROPIC_API_KEY"):
-        cfg.setdefault("api_keys", {})["anthropic"] = api_keys
+    # 环境变量覆盖
     if port := os.getenv("TUNEAI_PORT"):
         try:
             cfg.setdefault("server", {})["port"] = int(port)
@@ -39,6 +35,14 @@ def load_config() -> dict[str, Any]:
             pass
     if level := os.getenv("TUNEAI_LOG_LEVEL"):
         cfg.setdefault("logging", {})["level"] = level
+    if key := os.getenv("TUNEAI_QWEN_VL_API_KEY"):
+        cfg.setdefault("qwen_vl", {})["api_key"] = key
+    if key := os.getenv("TUNEAI_LLM_API_KEY"):
+        cfg.setdefault("llm", {})["api_key"] = key
+    if key_id := os.getenv("TUNEAI_ALIBABA_OCR_KEY_ID"):
+        cfg.setdefault("alibaba_ocr", {})["access_key_id"] = key_id
+    if key_secret := os.getenv("TUNEAI_ALIBABA_OCR_KEY_SECRET"):
+        cfg.setdefault("alibaba_ocr", {})["access_key_secret"] = key_secret
     return cfg
 
 
@@ -61,16 +65,16 @@ def get_server_port() -> int:
     return get_config().get("server", {}).get("port", 8000)
 
 
-def get_api_key(service: str) -> str:
-    return get_config().get("api_keys", {}).get(service, "") or os.getenv(f"TUNEAI_{service.upper()}_API_KEY", "")
+def get_qwen_vl_config() -> dict[str, Any]:
+    return get_config().get("qwen_vl", {})
 
 
 def get_llm_config() -> dict[str, Any]:
     return get_config().get("llm", {})
 
 
-def get_ocr_config() -> dict[str, Any]:
-    return get_config().get("ocr", {})
+def get_alibaba_ocr_config() -> dict[str, Any]:
+    return get_config().get("alibaba_ocr", {})
 
 
 def get_pipeline_config() -> dict[str, Any]:
@@ -86,30 +90,15 @@ def get_frontend_config() -> dict[str, Any]:
 
 
 def get_frontend_mode() -> str:
-    """前端模式，仅支持 'build'（React/Vite 构建产物，方案 A 单端口）。"""
     return get_frontend_config().get("mode", "build")
 
 
 def get_frontend_build_dir() -> Path:
-    """React 构建输出目录，相对项目根（如 frontend/dist）。"""
     d = get_frontend_config().get("build_dir", "frontend/dist")
     return _CONFIG_DIR / d
 
 
-def get_frontend_template_dir() -> Path:
-    """已废弃：仅保留以兼容旧 config，前端现为 React+Vite 构建。"""
-    d = get_frontend_config().get("template_dir", "frontend/templates")
-    return _CONFIG_DIR / d
-
-
-def get_frontend_static_dir() -> Path:
-    """已废弃：仅保留以兼容旧 config，前端现为 React+Vite 构建。"""
-    d = get_frontend_config().get("static_dir", "frontend/static")
-    return _CONFIG_DIR / d
-
-
 def get_logs_dir() -> Path:
-    """日志目录（data/logs/）。"""
     d = get_logging_config().get("log_dir", "data/logs")
     p = _CONFIG_DIR / d
     p.mkdir(parents=True, exist_ok=True)
@@ -117,13 +106,11 @@ def get_logs_dir() -> Path:
 
 
 def get_samples_dir() -> Path:
-    """样本简谱图片目录（data/samples/），用于开发测试。"""
     d = get_pipeline_config().get("samples_dir", "data/samples")
     return _CONFIG_DIR / d
 
 
 def get_outputs_dir() -> Path:
-    """请求临时输出目录根（data/outputs/）。"""
     d = get_pipeline_config().get("outputs_dir", "data/outputs")
     p = _CONFIG_DIR / d
     p.mkdir(parents=True, exist_ok=True)
