@@ -86,8 +86,8 @@ def get_frontend_config() -> dict[str, Any]:
 
 
 def get_frontend_mode() -> str:
-    """'template' = Jinja2+静态；'build' = React 构建产物（方案 A 单端口）"""
-    return get_frontend_config().get("mode", "template")
+    """前端模式，仅支持 'build'（React/Vite 构建产物，方案 A 单端口）。"""
+    return get_frontend_config().get("mode", "build")
 
 
 def get_frontend_build_dir() -> Path:
@@ -97,12 +97,12 @@ def get_frontend_build_dir() -> Path:
 
 
 def get_frontend_template_dir() -> Path:
-    """Jinja2 模板目录（template 模式用）。"""
+    """已废弃：仅保留以兼容旧 config，前端现为 React+Vite 构建。"""
     d = get_frontend_config().get("template_dir", "frontend/templates")
     return _CONFIG_DIR / d
 
 
 def get_frontend_static_dir() -> Path:
-    """静态资源目录（template 模式用）。"""
+    """已废弃：仅保留以兼容旧 config，前端现为 React+Vite 构建。"""
     d = get_frontend_config().get("static_dir", "frontend/static")
     return _CONFIG_DIR / d

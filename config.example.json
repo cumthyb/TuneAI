@@ -4,10 +4,8 @@
     "port": 8000
   },
   "frontend": {
-    "mode": "template",
     "build_dir": "frontend/dist",
-    "template_dir": "frontend/templates",
-    "static_dir": "frontend/static"
+    "dev_port": 5173
   },
   "api_keys": {
     "openai": "",

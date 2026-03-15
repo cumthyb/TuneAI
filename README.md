@@ -26,7 +26,7 @@
 - **ocr**：`engine`、`use_gpu`、检测/识别参数
 - **pipeline**：请求超时、临时目录、是否自动清理
 - **logging**：`level`（DEBUG/INFO/WARNING/ERROR）、`format`（json/text）、`request_id_header`
-- **frontend**：`mode`、`build_dir`（Vite 默认 `frontend/dist`）、`template_dir`、`static_dir`
+- **frontend**：`build_dir`（Vite 默认 `frontend/dist`）、`dev_port`（开发服务器端口，默认 5173）
 
 `config.json` 已加入 `.gitignore`，不会提交；敏感项建议用环境变量覆盖。
 
@@ -35,8 +35,7 @@
 前端使用 **React + Tailwind CSS**，由 **Vite** 打包。生产部署采用方案 A：同一端口提供页面与 API。
 
 1. 在 `frontend/` 下执行 `npm run build`，构建产物输出到 `frontend/dist`（可在 config 中通过 `frontend.build_dir` 修改）。
-2. 在 `config.json` 中设置 `"frontend": { "mode": "build", "build_dir": "frontend/dist", ... }`。
-3. 启动后端后，访问同一端口即可：页面与 `POST /api/transpose` 均由后端提供，SPA 路由由后端回退到 `index.html`。
+2. 启动后端后，访问同一端口即可：页面与 `POST /api/transpose` 均由后端提供，SPA 路由由后端回退到 `index.html`。
 
 ## 本地运行
 
@@ -65,7 +64,7 @@ poetry run python run.py
 
 ```bash
 cd frontend && npm run dev
-# Vite 开发服务器（如 http://localhost:5173），需配置 API 代理或 CORS 指向后端端口
+# Vite 开发服务器端口由 config.json 的 frontend.dev_port 决定（默认 5173），/api 已代理到后端 server.port
 ```
 
 ### 生成 requirements.txt（部署用）
