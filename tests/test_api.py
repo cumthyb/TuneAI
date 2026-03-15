@@ -1,33 +1,21 @@
 """
 API 契约测试。
+
+使用 conftest 中的 minimal_png_bytes / sample_image_bytes fixture。
+所有测试均 mock run_pipeline，不依赖 OCR/LLM。
 """
 import io
-import sys
-from pathlib import Path
 from unittest.mock import MagicMock, patch
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "backend"))
 
 import pytest
 from fastapi.testclient import TestClient
 
 
-def _make_png_bytes() -> bytes:
-    """生成一个最小的合法 PNG（1x1 白色像素）。"""
-    import base64
-    # 1x1 white PNG (minimal valid PNG)
-    b64 = (
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8"
-        "z8BQDwADhQGAWjR9awAAAABJRU5ErkJggg=="
-    )
-    return base64.b64decode(b64)
-
-
-@pytest.fixture
+@pytest.fixture(scope="module")
 def client():
-    # Mock run_pipeline so we don't need actual OCR/LLM in tests
+    """FastAPI TestClient，mock 掉 run_pipeline。"""
     mock_result = MagicMock()
-    mock_result.output_image_b64 = "dGVzdA=="  # "test" base64
+    mock_result.output_image_b64 = "dGVzdA=="   # base64("test")
     mock_result.score_ir = MagicMock()
     mock_result.score_ir.model_dump.return_value = {"score_id": "test", "measures": []}
     mock_result.warnings = []
@@ -35,40 +23,51 @@ def client():
 
     with patch("tuneai.api.routes.run_pipeline", return_value=mock_result):
         from tuneai.main import app
-        with TestClient(app) as c:
+        with TestClient(app, raise_server_exceptions=False) as c:
             yield c
 
 
-class TestTransposeEndpoint:
-    def test_missing_fields_returns_422(self, client):
+# ---------------------------------------------------------------------------
+# 422: 缺少必填字段
+# ---------------------------------------------------------------------------
+
+class TestMissingFields:
+
+    def test_no_fields(self, client):
         resp = client.post("/api/transpose")
         assert resp.status_code == 422
 
-    def test_missing_image_returns_422(self, client):
+    def test_no_image(self, client):
         resp = client.post("/api/transpose", data={"target_key": "C"})
         assert resp.status_code == 422
 
-    def test_missing_target_key_returns_422(self, client):
-        png = _make_png_bytes()
+    def test_no_target_key(self, client, minimal_png_bytes):
         resp = client.post(
             "/api/transpose",
-            files={"image": ("test.png", io.BytesIO(png), "image/png")},
+            files={"image": ("test.png", io.BytesIO(minimal_png_bytes), "image/png")},
         )
         assert resp.status_code == 422
 
-    def test_invalid_target_key_returns_error(self, client):
-        png = _make_png_bytes()
+
+# ---------------------------------------------------------------------------
+# 业务错误：target_key / 文件格式不合法
+# ---------------------------------------------------------------------------
+
+class TestValidationErrors:
+
+    def test_invalid_target_key(self, client, minimal_png_bytes):
         resp = client.post(
             "/api/transpose",
-            files={"image": ("test.png", io.BytesIO(png), "image/png")},
+            files={"image": ("test.png", io.BytesIO(minimal_png_bytes), "image/png")},
             data={"target_key": "X"},
         )
         assert resp.status_code == 200
         body = resp.json()
         assert body["success"] is False
         assert body["error_code"] == "INVALID_TARGET_KEY"
+        assert "request_id" in body
 
-    def test_non_image_file_returns_error(self, client):
+    def test_non_image_file(self, client):
         resp = client.post(
             "/api/transpose",
             files={"image": ("score.txt", io.BytesIO(b"hello"), "text/plain")},
@@ -79,11 +78,28 @@ class TestTransposeEndpoint:
         assert body["success"] is False
         assert body["error_code"] == "INVALID_IMAGE_FORMAT"
 
-    def test_valid_request_returns_success(self, client):
-        png = _make_png_bytes()
+    def test_all_valid_keys(self, client, minimal_png_bytes):
+        """所有合法调名都应通过校验，返回 success=True。"""
+        for key in ["C", "C#", "Db", "D", "Eb", "E", "F", "F#", "Gb", "G", "Ab", "A", "Bb", "B"]:
+            resp = client.post(
+                "/api/transpose",
+                files={"image": ("s.png", io.BytesIO(minimal_png_bytes), "image/png")},
+                data={"target_key": key},
+            )
+            assert resp.status_code == 200, f"key={key}"
+            assert resp.json()["success"] is True, f"key={key}"
+
+
+# ---------------------------------------------------------------------------
+# 正常成功响应结构校验
+# ---------------------------------------------------------------------------
+
+class TestSuccessResponse:
+
+    def test_response_structure(self, client, minimal_png_bytes):
         resp = client.post(
             "/api/transpose",
-            files={"image": ("score.png", io.BytesIO(png), "image/png")},
+            files={"image": ("score.png", io.BytesIO(minimal_png_bytes), "image/png")},
             data={"target_key": "C"},
         )
         assert resp.status_code == 200
@@ -92,28 +108,36 @@ class TestTransposeEndpoint:
         assert "output_image" in body
         assert "score_json" in body
         assert "warnings" in body
+        assert isinstance(body["warnings"], list)
         assert "processing_time_ms" in body
         assert "request_id" in body
 
-    def test_valid_request_all_keys(self, client):
-        """Test a sample of valid keys."""
-        png = _make_png_bytes()
-        for key in ["C", "D", "Eb", "F#", "Bb", "B"]:
-            resp = client.post(
-                "/api/transpose",
-                files={"image": ("score.png", io.BytesIO(png), "image/png")},
-                data={"target_key": key},
-            )
-            assert resp.status_code == 200
-            assert resp.json()["success"] is True
-
-    def test_request_id_propagated(self, client):
-        png = _make_png_bytes()
+    def test_request_id_propagated_from_header(self, client, minimal_png_bytes):
         resp = client.post(
             "/api/transpose",
-            files={"image": ("score.png", io.BytesIO(png), "image/png")},
+            files={"image": ("score.png", io.BytesIO(minimal_png_bytes), "image/png")},
             data={"target_key": "G"},
-            headers={"X-Request-ID": "req_custom123"},
+            headers={"X-Request-ID": "req_custom_abc"},
         )
         assert resp.status_code == 200
-        assert resp.json()["request_id"] == "req_custom123"
+        assert resp.json()["request_id"] == "req_custom_abc"
+
+    def test_auto_generated_request_id(self, client, minimal_png_bytes):
+        resp = client.post(
+            "/api/transpose",
+            files={"image": ("score.png", io.BytesIO(minimal_png_bytes), "image/png")},
+            data={"target_key": "F"},
+        )
+        assert resp.status_code == 200
+        rid = resp.json()["request_id"]
+        assert rid.startswith("req_"), rid
+
+    def test_sample_image_success(self, client, sample_image_bytes):
+        """用真实样本图 匆匆那年.png 测试 API 正常响应结构（pipeline 已 mock）。"""
+        resp = client.post(
+            "/api/transpose",
+            files={"image": ("匆匆那年.png", io.BytesIO(sample_image_bytes), "image/png")},
+            data={"target_key": "C"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["success"] is True

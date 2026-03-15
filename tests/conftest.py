@@ -1,0 +1,62 @@
+"""
+pytest 共享 fixture。
+
+目录约定：
+  data/samples/   — 开发/测试用样本简谱图片（版本控制）
+  data/outputs/   — 运行时临时目录，每个请求一个子目录
+  data/logs/      — 日志文件
+"""
+import sys
+from pathlib import Path
+
+# 保证后端包可导入
+_BACKEND = Path(__file__).resolve().parent.parent / "backend"
+if str(_BACKEND) not in sys.path:
+    sys.path.insert(0, str(_BACKEND))
+
+import pytest
+
+# 项目根目录
+ROOT = Path(__file__).resolve().parent.parent
+
+# 样本图片目录
+SAMPLES_DIR = ROOT / "data" / "samples"
+
+# 主测试样本："匆匆那年.png"
+SAMPLE_IMAGE_PATH = SAMPLES_DIR / "匆匆那年.png"
+
+
+# ---------------------------------------------------------------------------
+# 基础 fixture
+# ---------------------------------------------------------------------------
+
+@pytest.fixture(scope="session")
+def sample_image_path() -> Path:
+    """返回样本简谱图片路径（匆匆那年.png）。"""
+    if not SAMPLE_IMAGE_PATH.exists():
+        pytest.skip(f"样本图片不存在: {SAMPLE_IMAGE_PATH}")
+    return SAMPLE_IMAGE_PATH
+
+
+@pytest.fixture(scope="session")
+def sample_image_bytes(sample_image_path: Path) -> bytes:
+    """读取样本简谱图片字节。"""
+    return sample_image_path.read_bytes()
+
+
+@pytest.fixture(scope="session")
+def minimal_png_bytes() -> bytes:
+    """最小合法 PNG（1×1 白色像素），用于 API 格式校验测试。"""
+    import base64
+    b64 = (
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8"
+        "z8BQDwADhQGAWjR9awAAAABJRU5ErkJggg=="
+    )
+    return base64.b64decode(b64)
+
+
+@pytest.fixture(autouse=True, scope="session")
+def setup_logging_once():
+    """测试期间启用 human-readable 日志（stderr），跳过文件日志。"""
+    from tuneai.logging_config import setup_logging
+    setup_logging(level="DEBUG", fmt="human")

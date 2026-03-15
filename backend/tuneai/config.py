@@ -106,3 +106,25 @@ def get_frontend_static_dir() -> Path:
     """已废弃：仅保留以兼容旧 config，前端现为 React+Vite 构建。"""
     d = get_frontend_config().get("static_dir", "frontend/static")
     return _CONFIG_DIR / d
+
+
+def get_logs_dir() -> Path:
+    """日志目录（data/logs/）。"""
+    d = get_logging_config().get("log_dir", "data/logs")
+    p = _CONFIG_DIR / d
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
+
+def get_samples_dir() -> Path:
+    """样本简谱图片目录（data/samples/），用于开发测试。"""
+    d = get_pipeline_config().get("samples_dir", "data/samples")
+    return _CONFIG_DIR / d
+
+
+def get_outputs_dir() -> Path:
+    """请求临时输出目录根（data/outputs/）。"""
+    d = get_pipeline_config().get("output_dir", "data/outputs")
+    p = _CONFIG_DIR / d
+    p.mkdir(parents=True, exist_ok=True)
+    return p

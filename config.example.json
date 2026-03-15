@@ -28,12 +28,18 @@
   },
   "pipeline": {
     "request_timeout_seconds": 30,
-    "temp_dir": "data/outputs",
+    "input_dir": "data/outputs",
+    "output_dir": "data/outputs",
+    "samples_dir": "data/samples",
     "cleanup_after_response": true
   },
   "logging": {
     "level": "INFO",
     "format": "json",
-    "request_id_header": "X-Request-ID"
+    "request_id_header": "X-Request-ID",
+    "log_dir": "data/logs",
+    "log_file": "tuneai.log",
+    "rotation": "10 MB",
+    "retention": "7 days"
   }
 }
