@@ -1,0 +1,78 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# 虚拟环境
+.venv/
+venv/
+env/
+ENV/
+
+# 测试与覆盖率
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# 类型与检查
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# 系统
+.DS_Store
+Thumbs.db
+
+# 环境与密钥
+.env
+.env.local
+.env.*.local
+*.pem
+
+# 日志
+*.log
+logs/
+
+# 临时与输出（保留目录结构用 data/outputs/.gitkeep）
+data/outputs/*
+!data/outputs/.gitkeep
+
+# 大文件与模型缓存（按需取消注释）
+# data/samples/*.png
+# data/samples/*.jpg
+# assets/fonts/*.ttf
+# assets/fonts/*.otf
+# .paddleocr/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# 本地配置（若存在）
+local_config.py
+settings_local.py

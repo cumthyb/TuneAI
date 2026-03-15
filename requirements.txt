@@ -1,0 +1,19 @@
+# TuneAI 后端依赖
+fastapi>=0.100.0
+uvicorn[standard]>=0.22.0
+jinja2>=3.1.0
+python-multipart>=0.0.6
+opencv-python>=4.8.0
+pillow>=10.0.0
+numpy>=1.24.0
+paddleocr>=2.7.0
+langchain>=0.1.0
+langchain-core>=0.1.0
+pydantic>=2.0.0
+# structlog 或 loguru 二选一
+structlog>=23.0.0
+# cairosvg、svgwrite、rapidfuzz 等按需取消注释
+# cairosvg>=2.7.0
+# svgwrite>=1.4.0
+# rapidfuzz>=3.0.0
+pytest>=7.0.0
