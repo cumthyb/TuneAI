@@ -7,23 +7,20 @@
 #   make test      运行所有单元测试（OCR/LLM/Music/API/Pipeline 均 mock 外部引擎）
 #
 # 其他：
-#   make install   安装所有依赖（前端 npm + 后端 poetry/pip）
+#   make install   安装所有依赖（前端 npm + 后端 poetry）
 #   make build     构建前端产物（frontend/dist）
 #   make test-int  运行集成测试（需要真实 OCR 模型 + LLM 服务）
 #   make lint      检查前端代码风格
 #   make help      显示此帮助
 
 .PHONY: help dev backend test test-int install build lint
+# Note: $(VENV)/bin/python is intentionally NOT .PHONY — Make uses it as a file sentinel
 
-# Python 解释器（优先用 poetry，回退到 python3.12/python3）
-PYTHON := $(shell command -v poetry >/dev/null 2>&1 && echo "poetry run python" || \
-          (command -v python3.12 >/dev/null 2>&1 && echo "python3.12") || \
-          echo "python3")
-
-# pytest（同上）
-PYTEST := $(shell command -v poetry >/dev/null 2>&1 && echo "poetry run pytest" || \
-          (command -v python3.12 >/dev/null 2>&1 && echo "python3.12 -m pytest") || \
-          echo "python3 -m pytest")
+# 使用项目内 .venv（Python 3.12）
+VENV    := .venv
+PYTHON  := $(VENV)/bin/python
+PYTEST  := $(VENV)/bin/pytest
+POETRY  := $(VENV)/bin/poetry
 
 BACKEND_DIR := backend
 FRONTEND_DIR := frontend
@@ -38,7 +35,7 @@ help:
 	@echo "  make backend    启动后端 API 服务器  (uvicorn → http://localhost:8000)"
 	@echo "  make test       运行所有单元测试     (外部引擎均 mock，无需 OCR 模型/LLM 服务)"
 	@echo "  make test-int   运行集成测试         (需要真实 OCR 模型 + LLM 服务)"
-	@echo "  make install    安装所有依赖         (前端 npm + 后端 poetry/pip)"
+	@echo "  make install    安装所有依赖         (前端 npm + 后端 poetry)"
 	@echo "  make build      构建前端产物         (frontend/dist)"
 	@echo "  make lint       前端代码检查"
 	@echo ""
@@ -78,12 +75,8 @@ test-int:
 install:
 	@echo "→ 安装前端依赖..."
 	cd $(FRONTEND_DIR) && npm install
-	@echo "→ 安装后端依赖..."
-	@if command -v poetry >/dev/null 2>&1; then \
-		poetry install; \
-	else \
-		echo "  (未检测到 poetry，请手动执行 pip install)"; \
-	fi
+	@echo "→ 安装后端依赖 (使用 .venv/bin/poetry) ..."
+	POETRY_VIRTUALENVS_IN_PROJECT=true POETRY_VIRTUALENVS_CREATE=true $(POETRY) install
 	@echo "✓ 安装完成"
 
 build:

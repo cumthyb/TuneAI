@@ -124,7 +124,7 @@ def get_samples_dir() -> Path:
 
 def get_outputs_dir() -> Path:
     """请求临时输出目录根（data/outputs/）。"""
-    d = get_pipeline_config().get("output_dir", "data/outputs")
+    d = get_pipeline_config().get("outputs_dir", "data/outputs")
     p = _CONFIG_DIR / d
     p.mkdir(parents=True, exist_ok=True)
     return p

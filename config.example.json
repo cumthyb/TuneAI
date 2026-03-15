@@ -18,7 +18,8 @@
     "temperature": 0.1,
     "max_tokens": 4096,
     "timeout_seconds": 30,
-    "fallback_model": ""
+    "structured_output_method": "function_calling",
+    "disable_parallel_tool_calls": true
   },
   "ocr": {
     "engine": "paddleocr",
@@ -28,8 +29,7 @@
   },
   "pipeline": {
     "request_timeout_seconds": 30,
-    "input_dir": "data/outputs",
-    "output_dir": "data/outputs",
+    "outputs_dir": "data/outputs",
     "samples_dir": "data/samples",
     "cleanup_after_response": true
   },
