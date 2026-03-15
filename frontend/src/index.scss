@@ -3,20 +3,196 @@
 @tailwind components;
 @tailwind utilities;
 
-// Fullscreen API 全屏时的样式（含 WebKit 前缀）
+// 科技感深色主题配色 - AI风格
+:root {
+  --bg-primary: #050508;
+  --bg-secondary: #0a0a0f;
+  --bg-card: rgba(10, 10, 15, 0.7);
+  --accent-primary: #06b6d4;    // Cyan - AI科技感
+  --accent-secondary: #8b5cf6;  // Purple
+  --accent-tertiary: #ec4899;   // Pink
+  --accent-glow: rgba(6, 182, 212, 0.5);
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --border-glow: rgba(6, 182, 212, 0.3);
+  --neon-cyan: #00ffff;
+  --neon-purple: #bf00ff;
+}
+
+// 全局背景
+body {
+  background-color: #050508;
+  background-image: 
+    radial-gradient(ellipse at 20% 20%, rgba(6, 182, 212, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 80%, rgba(139, 92, 246, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, rgba(236, 72, 153, 0.03) 0%, transparent 70%);
+}
+
+// 全屏样式
 .fullscreen-image-wrapper {
   &:fullscreen,
   &:-webkit-full-screen {
-    background: #000;
+    background: #0a0a0f;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 1rem;
+    cursor: default;
   }
+  
   &:fullscreen img,
   &:-webkit-full-screen img {
     max-width: 100%;
     max-height: 100%;
     object-fit: contain;
   }
+
+  // 全屏模式下按钮始终可见
+  &:fullscreen button,
+  &:-webkit-full-screen button {
+    opacity: 1 !important;
+    z-index: 2147483647 !important; // 确保在全屏最上层
+  }
+}
+
+// 科技感滚动条
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(15, 15, 26, 0.8);
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #6366f1, #8b5cf6);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #818cf8, #a78bfa);
+}
+
+// 全局动画
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.3); }
+  50% { box-shadow: 0 0 40px rgba(99, 102, 241, 0.5); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
+// AI科技感动画
+@keyframes scan {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100vh); }
+}
+
+@keyframes dataflow {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(calc(100vh + 100%)); }
+}
+
+@keyframes neon-flicker {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+  52% { opacity: 0.3; }
+  54% { opacity: 1; }
+  90% { opacity: 1; }
+  92% { opacity: 0.5; }
+  94% { opacity: 1; }
+}
+
+@keyframes circuit-flow {
+  0% { stroke-dashoffset: 100; }
+  100% { stroke-dashoffset: 0; }
+}
+
+@keyframes glitch {
+  0% { transform: translate(0); }
+  20% { transform: translate(-2px, 2px); }
+  40% { transform: translate(-2px, -2px); }
+  60% { transform: translate(2px, 2px); }
+  80% { transform: translate(2px, -2px); }
+  100% { transform: translate(0); }
+}
+
+@keyframes border-rotate {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+// 霓虹发光效果工具类
+.neon-border {
+  position: relative;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    background: linear-gradient(45deg, #06b6d4, #8b5cf6, #ec4899, #06b6d4);
+    background-size: 300% 300%;
+    z-index: -1;
+    animation: border-rotate 4s linear infinite;
+    opacity: 0.5;
+  }
+  
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: inherit;
+    z-index: 1;
+  }
+}
+
+.neon-text {
+  text-shadow: 
+    0 0 5px rgba(6, 182, 212, 0.5),
+    0 0 10px rgba(6, 182, 212, 0.3),
+    0 0 20px rgba(6, 182, 212, 0.2);
+}
+
+.neon-box {
+  box-shadow: 
+    0 0 5px rgba(6, 182, 212, 0.3),
+    0 0 20px rgba(6, 182, 212, 0.2),
+    inset 0 0 20px rgba(6, 182, 212, 0.05);
+}
+
+// 玻璃态AI卡片
+.ai-card {
+  background: rgba(10, 10, 15, 0.6);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(6, 182, 212, 0.2);
+  box-shadow: 
+    0 4px 30px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+// 二进制背景装饰
+.binary-bg {
+  font-family: monospace;
+  font-size: 10px;
+  line-height: 10px;
+  color: rgba(6, 182, 212, 0.03);
+  user-select: none;
+  pointer-events: none;
 }

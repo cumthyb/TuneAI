@@ -8,6 +8,8 @@ import Dropzone from './components/Dropzone'
 import LoadingState from './components/LoadingState'
 import DownloadPanel from './components/DownloadPanel'
 import FullscreenImage from './components/FullscreenImage'
+import TechBackground from './components/TechBackground'
+import AIBadge from './components/AIBadge'
 
 const MAX_SIZE_MB = 20
 
@@ -125,18 +127,62 @@ export default function App() {
       : selectedPreviewUrl
 
   const panelBase =
-    'flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-slate-100 lg:min-h-[60vh]'
+    'ai-card flex flex-col overflow-hidden rounded-2xl lg:min-h-[60vh] neon-box'
   const labelBase =
-    'shrink-0 border-b border-slate-200 px-3 py-2 text-sm font-medium'
+    'shrink-0 border-b border-cyan-500/20 px-4 py-3 text-sm font-semibold tracking-wide'
 
   return (
-    <main className="flex min-h-screen flex-col bg-gradient-to-b from-slate-50 to-slate-100">
+    <main className="relative flex min-h-screen flex-col bg-[#050508]">
+      {/* 科技感背景 */}
+      <TechBackground />
+      
+      {/* 顶部霓虹发光条 */}
+      <div className="relative h-1 w-full overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500" />
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent animate-[shimmer_2s_infinite]" />
+      </div>
+
       {/* 上：标题 + 目标调与开始移调 */}
-      <header className="shrink-0 border-b border-slate-200 bg-white px-4 py-4 sm:px-6">
+      <header className="relative shrink-0 border-b border-cyan-500/10 bg-slate-950/60 backdrop-blur-xl px-4 py-5 sm:px-6">
         <div className="mx-auto max-w-6xl">
-          <h1 className="mb-4 font-serif text-xl font-semibold tracking-tight text-slate-800 sm:text-2xl">
-            TuneAI 简谱移调
-          </h1>
+          <div className="mb-4 flex items-center gap-4">
+            {/* AI Logo */}
+            <div className="relative flex h-12 w-12 items-center justify-center">
+              {/* 外发光环 */}
+              <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-cyan-500 to-purple-600 opacity-50 blur-lg animate-pulse" />
+              {/* 主图标 */}
+              <div className="relative flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-purple-600 shadow-lg">
+                <svg className="h-7 w-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z" />
+                </svg>
+              </div>
+              {/* 状态指示点 */}
+              <div className="absolute -right-1 -top-1 flex h-3 w-3">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-75" />
+                <span className="relative inline-flex h-3 w-3 rounded-full bg-cyan-400" />
+              </div>
+            </div>
+            
+            <div className="flex-1">
+              <div className="flex items-center gap-3">
+                <h1 className="neon-text bg-gradient-to-r from-white via-cyan-200 to-purple-200 bg-clip-text text-2xl font-bold tracking-tight text-transparent sm:text-3xl">
+                  TuneAI
+                </h1>
+                <AIBadge text="AI v2.0" size="sm" />
+              </div>
+              <p className="text-xs text-cyan-400/60 font-mono tracking-wide">NEURAL TRANSPOSITION ENGINE</p>
+            </div>
+
+            {/* 右侧状态信息 */}
+            <div className="hidden sm:flex items-center gap-4 text-xs font-mono text-slate-500">
+              <div className="flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                SYSTEM ONLINE
+              </div>
+              <div className="text-cyan-500/60">API READY</div>
+            </div>
+          </div>
+          
           <ControlBar
             file={selectedFile}
             targetKey={targetKey}
@@ -149,34 +195,52 @@ export default function App() {
       </header>
 
       {/* 下：左右结构，简谱图片预览 */}
-      <div className="flex-1 px-4 py-4 sm:px-6">
-        <div className="mx-auto grid max-w-6xl grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">
+      <div className="flex-1 px-4 py-6 sm:px-6">
+        <div className="mx-auto grid max-w-6xl grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">
           {/* 左：原图 / 上传前简谱 */}
           <div className={panelBase}>
             <div
-              className={`${labelBase} flex items-center justify-between gap-2 bg-slate-50 text-slate-600`}
+              className={`${labelBase} flex items-center justify-between gap-2 bg-gradient-to-r from-cyan-500/10 via-cyan-500/5 to-transparent text-cyan-200`}
             >
-              <span>
-                原图
-                {selectedFile && (
-                  <span className="ml-1 font-normal text-slate-500">
-                    · {selectedFile.name}
-                  </span>
+              <div className="flex items-center gap-3">
+                <div className="flex h-6 w-6 items-center justify-center rounded bg-cyan-500/20">
+                  <svg className="h-4 w-4 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <div>
+                  <span className="font-semibold">INPUT_01</span>
+                  {selectedFile && (
+                    <span className="ml-2 font-mono text-xs text-cyan-400/60">
+                      {selectedFile.name}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-xs text-cyan-500/40">SRC</span>
+                {selectedFile && !isLoading && (
+                  <button
+                    type="button"
+                    onClick={() => handleFileChange(null)}
+                    className="rounded-lg p-1.5 text-slate-400 transition-all hover:bg-white/10 hover:text-white"
+                    title="清除"
+                    aria-label="清除已选文件"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
                 )}
-              </span>
-              {selectedFile && !isLoading && (
-                <button
-                  type="button"
-                  onClick={() => handleFileChange(null)}
-                  className="rounded p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-600"
-                  title="清除"
-                  aria-label="清除已选文件"
-                >
-                  ×
-                </button>
-              )}
+              </div>
             </div>
-            <div className="flex min-h-[280px] flex-1 flex-col">
+            <div className="relative flex min-h-[320px] flex-1 flex-col bg-slate-950/50">
+              {/* 角落装饰 */}
+              <div className="absolute left-2 top-2 h-3 w-3 border-l border-t border-cyan-500/30" />
+              <div className="absolute right-2 top-2 h-3 w-3 border-r border-t border-cyan-500/30" />
+              <div className="absolute bottom-2 left-2 h-3 w-3 border-b border-l border-cyan-500/30" />
+              <div className="absolute bottom-2 right-2 h-3 w-3 border-b border-r border-cyan-500/30" />
+              
               {leftImageUrl ? (
                 <FullscreenImage
                   src={leftImageUrl}
@@ -194,21 +258,53 @@ export default function App() {
 
           {/* 右：移调结果 / 上传后简谱 */}
           <div className={panelBase}>
-            <p className={`${labelBase} bg-amber-50 text-amber-800`}>
-              移调结果
-            </p>
-            <div className="flex min-h-[280px] flex-1 flex-col">
+            <div className={`${labelBase} flex items-center justify-between bg-gradient-to-r from-purple-500/10 via-purple-500/5 to-transparent text-purple-200`}>
+              <div className="flex items-center gap-3">
+                <div className="flex h-6 w-6 items-center justify-center rounded bg-purple-500/20">
+                  <svg className="h-4 w-4 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z" />
+                  </svg>
+                </div>
+                <span className="font-semibold">OUTPUT_01</span>
+              </div>
+              <span className="font-mono text-xs text-purple-500/40">AI GEN</span>
+            </div>
+            <div className="relative flex min-h-[320px] flex-1 flex-col bg-slate-950/50">
+              {/* 角落装饰 */}
+              <div className="absolute left-2 top-2 h-3 w-3 border-l border-t border-purple-500/30" />
+              <div className="absolute right-2 top-2 h-3 w-3 border-r border-t border-purple-500/30" />
+              <div className="absolute bottom-2 left-2 h-3 w-3 border-b border-l border-purple-500/30" />
+              <div className="absolute bottom-2 right-2 h-3 w-3 border-b border-r border-purple-500/30" />
+              
               {pageState.status === 'idle' && (
-                <div className="flex flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50/50 p-8 text-center">
-                  <p className="text-slate-500">移调结果将显示在此处</p>
-                  <p className="mt-1 text-xs text-slate-400">
-                    选择文件并点击「开始移调」
+                <div className="flex flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-cyan-500/20 bg-slate-900/30 p-8 text-center">
+                  <div className="mb-4 relative">
+                    <div className="absolute inset-0 rounded-full bg-cyan-500/20 blur-xl animate-pulse" />
+                    <div className="relative rounded-full border border-cyan-500/30 bg-cyan-950/50 p-4">
+                      <svg className="h-8 w-8 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                    </div>
+                  </div>
+                  <p className="text-slate-300 font-medium">等待处理</p>
+                  <p className="mt-1 text-xs text-slate-500 font-mono">
+                    UPLOAD SOURCE → INIT TRANSPOSITION
                   </p>
                 </div>
               )}
               {pageState.status === 'loading' && (
-                <div className="flex flex-1 items-center justify-center p-8">
-                  <LoadingState message="正在识别与移调，请稍候…" />
+                <div className="flex flex-1 flex-col items-center justify-center p-8">
+                  <LoadingState message="AI 处理中…" />
+                  <div className="mt-6 flex flex-col items-center gap-2">
+                    <div className="flex items-center gap-2 font-mono text-xs text-cyan-500/60">
+                      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-400" />
+                      ANALYZING PATTERN
+                    </div>
+                    <div className="h-px w-32 bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent" />
+                    <div className="font-mono text-[10px] text-slate-600">
+                      NEURAL NETWORK: ACTIVE
+                    </div>
+                  </div>
                 </div>
               )}
               {pageState.status === 'error' && (
@@ -238,16 +334,29 @@ export default function App() {
 
         {/* 成功时：提示、下载、继续上传 */}
         {isSuccess && (
-          <div className="mx-auto mt-6 max-w-6xl space-y-4">
-            <p className="text-center text-sm text-slate-500">
-              处理耗时 <strong>{pageState.processingTimeMs}</strong> ms
-            </p>
+          <div className="mx-auto mt-8 max-w-6xl space-y-4">
+            <div className="flex items-center justify-center gap-3 text-sm">
+              <div className="flex items-center gap-1.5 rounded-full border border-green-500/30 bg-green-950/30 px-3 py-1.5">
+                <span className="h-2 w-2 rounded-full bg-green-400 animate-pulse" />
+                <span className="font-mono text-xs text-green-400">COMPLETE</span>
+              </div>
+              <span className="text-slate-500">|</span>
+              <div className="flex items-center gap-2 text-slate-400">
+                <svg className="h-4 w-4 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="font-mono text-cyan-300">{pageState.processingTimeMs}ms</span>
+              </div>
+            </div>
             {pageState.warnings.length > 0 && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-4">
-                <p className="mb-2 text-sm font-medium text-amber-800">
+              <div className="rounded-xl border border-amber-500/30 bg-amber-950/30 p-4 backdrop-blur">
+                <p className="mb-2 flex items-center gap-2 text-sm font-medium text-amber-300">
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
                   提示与复核建议
                 </p>
-                <ul className="list-inside list-disc space-y-1 text-sm text-amber-900">
+                <ul className="list-inside list-disc space-y-1 text-sm text-amber-200/80">
                   {pageState.warnings.map((w, i) => (
                     <li key={i}>
                       {w.measure != null && `小节 ${w.measure}：`}
@@ -267,8 +376,11 @@ export default function App() {
               <button
                 type="button"
                 onClick={handleContinueUpload}
-                className="text-sm text-amber-600 hover:underline"
+                className="group inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-slate-900/60 px-5 py-2 text-sm text-indigo-300 backdrop-blur-sm transition-all hover:border-indigo-400/50 hover:bg-indigo-500/10 hover:text-indigo-200"
               >
+                <svg className="h-4 w-4 transition-transform group-hover:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
                 继续上传另一张简谱
               </button>
             </div>

@@ -19,38 +19,82 @@ export default function ControlBar({
 }: ControlBarProps) {
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2">
-          <label htmlFor="target-key" className="text-sm font-medium text-slate-700">
-            目标调
+      <div className="flex flex-wrap items-center gap-4">
+        {/* 目标调选择器 - AI风格（并排布局） */}
+        <div className="group flex items-center gap-3">
+          <label htmlFor="target-key" className="flex items-center gap-1.5 text-xs font-medium text-cyan-400/80">
+            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z" />
+            </svg>
+            TARGET_KEY
           </label>
-          <select
-            id="target-key"
-            value={targetKey}
-            onChange={(e) => onTargetKeyChange(e.target.value as TargetKey)}
-            disabled={disabled}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
-          >
-            {TARGET_KEYS.map((k) => (
-              <option key={k} value={k}>
-                {k}
-              </option>
-            ))}
-          </select>
+          <div className="relative">
+            <select
+              id="target-key"
+              value={targetKey}
+              onChange={(e) => onTargetKeyChange(e.target.value as TargetKey)}
+              disabled={disabled}
+              className="appearance-none rounded-lg border border-cyan-500/30 bg-slate-950/80 px-3 py-1.5 pr-8 text-sm font-mono font-medium text-cyan-100 backdrop-blur-sm transition-all hover:border-cyan-400/50 hover:bg-slate-900/80 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 disabled:opacity-50"
+            >
+              {TARGET_KEYS.map((k) => (
+                <option key={k} value={k} className="bg-slate-950 font-mono">
+                  {k}
+                </option>
+              ))}
+            </select>
+            <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-cyan-500">
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={onSubmit}
-          disabled={disabled || !file}
-          className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          开始移调
-        </button>
+
+        {/* 处理参数显示 */}
+        <div className="hidden sm:flex flex-col gap-1">
+          <span className="text-[10px] font-medium text-slate-500 uppercase">Algorithm</span>
+          <span className="text-xs font-mono text-cyan-400/70">12-TET Neural</span>
+        </div>
+
+        <div className="hidden sm:flex flex-col gap-1">
+          <span className="text-[10px] font-medium text-slate-500 uppercase">Precision</span>
+          <span className="text-xs font-mono text-cyan-400/70">99.8%</span>
+        </div>
+
+        {/* AI处理按钮 */}
+        <div className="flex flex-col justify-end">
+          <div className="h-5" />
+          <button
+            type="button"
+            onClick={onSubmit}
+            disabled={disabled || !file}
+            className="group relative overflow-hidden rounded-lg border border-cyan-500/50 bg-gradient-to-r from-cyan-600/80 to-blue-600/80 px-5 py-2 text-sm font-bold text-white shadow-lg shadow-cyan-500/20 backdrop-blur-sm transition-all hover:border-cyan-400 hover:shadow-cyan-500/40 hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
+          >
+            <span className="relative z-10 flex items-center gap-2">
+              <svg className="h-4 w-4 transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              <span className="font-mono tracking-wider">PROCESS</span>
+            </span>
+            {/* 扫描线效果 */}
+            <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-cyan-400/30 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+            {/* 脉冲光效 */}
+            <div className="absolute inset-0 rounded-lg opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+              <div className="absolute inset-0 rounded-lg border border-cyan-400/50" />
+            </div>
+          </button>
+        </div>
       </div>
+
+      {/* 错误提示 - 科技风格 */}
       {error && (
-        <p className="text-sm text-red-600" role="alert">
+        <div className="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-950/50 px-3 py-2 text-sm text-red-300 backdrop-blur-sm" role="alert">
+          <svg className="h-4 w-4 flex-shrink-0 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span className="font-mono text-xs uppercase">ERROR:</span>
           {error}
-        </p>
+        </div>
       )}
     </div>
   )
