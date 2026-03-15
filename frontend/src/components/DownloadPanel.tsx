@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import type { ScoreJson } from '../types/api'
 
 export interface DownloadPanelProps {
@@ -20,6 +20,7 @@ export default function DownloadPanel({
   requestId,
   processingTimeMs,
 }: DownloadPanelProps) {
+  const [copied, setCopied] = useState(false)
   const downloadImage = useCallback(() => {
     const dataUrl = ensureDataUrl(outputImage)
     const a = document.createElement('a')
@@ -48,7 +49,8 @@ export default function DownloadPanel({
       .filter(Boolean)
       .join('\n')
     void navigator.clipboard.writeText(text).then(() => {
-      // 可以在这里添加一个临时的 toast 提示
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
     })
   }, [requestId, processingTimeMs])
 
@@ -87,10 +89,21 @@ export default function DownloadPanel({
           className="group inline-flex items-center gap-2 rounded-xl border border-slate-600/50 bg-slate-900/40 px-4 py-2.5 text-sm font-medium text-slate-400 backdrop-blur-sm transition-all hover:border-slate-500 hover:bg-slate-800/60 hover:text-slate-300"
           title="复制 request_id 便于与后端日志关联"
         >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-          </svg>
-          复制调试信息
+          {copied ? (
+            <>
+              <svg className="h-4 w-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <span className="text-green-400">已复制</span>
+            </>
+          ) : (
+            <>
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              复制调试信息
+            </>
+          )}
         </button>
       </div>
       <div className="mt-4 flex items-center gap-2 rounded-lg bg-slate-950/50 px-3 py-2">

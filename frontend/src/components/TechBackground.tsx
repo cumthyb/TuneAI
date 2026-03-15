@@ -1,7 +1,19 @@
 /**
  * 科技感背景组件 - 网格 + 粒子 + 光效
  */
+import { useMemo } from 'react'
+
 export default function TechBackground() {
+  // 预生成粒子位置，避免每次渲染重新随机导致视觉抖动
+  const particles = useMemo(
+    () =>
+      Array.from({ length: 20 }, (_, i) => ({
+        left: `${(i * 7.3 + 3.1) % 100}%`,
+        top: `${(i * 13.7 + 5.9) % 100}%`,
+        delay: `${(i * 0.3) % 3}s`,
+      })),
+    []
+  )
   return (
     <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
       {/* 网格背景 */}
@@ -40,14 +52,14 @@ export default function TechBackground() {
 
       {/* 浮动光点 - AI节点 */}
       <div className="absolute inset-0">
-        {[...Array(20)].map((_, i) => (
+        {particles.map((p, i) => (
           <div
             key={i}
             className="absolute h-1 w-1 rounded-full bg-cyan-400/30 animate-[pulse_3s_ease-in-out_infinite]"
             style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 3}s`,
+              left: p.left,
+              top: p.top,
+              animationDelay: p.delay,
             }}
           />
         ))}
