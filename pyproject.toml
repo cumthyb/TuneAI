@@ -1,0 +1,37 @@
+[tool.poetry]
+name = "tuneai"
+version = "0.1.0"
+description = "将简谱图片转换为指定目标调的简谱，供半音阶口琴演奏者使用"
+authors = ["TuneAI"]
+packages = [{ include = "tuneai", from = "backend" }]
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.14"
+fastapi = "^0.115"
+uvicorn = { version = "^0.34", extras = ["standard"] }
+python-multipart = "^0.0.20"
+pydantic = "^2.10"
+loguru = "^0.7"
+opencv-python-headless = "^4.10"
+pillow = "^11"
+numpy = "^2"
+paddleocr = "^2.8"
+paddlepaddle = "^2.6"
+langchain = "^0.3"
+langchain-core = "^0.3"
+langchain-openai = "^0.3"
+openai = "^1.60"
+rapidfuzz = "^3"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8"
+pytest-asyncio = "^0.24"
+httpx = "^0.28"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

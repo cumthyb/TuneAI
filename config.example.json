@@ -9,12 +9,12 @@
   },
   "api_keys": {
     "openai": "",
-    "anthropic": "",
-    "paddleocr": ""
+    "anthropic": ""
   },
   "llm": {
-    "provider": "openai",
     "model": "gpt-4o-mini",
+    "base_url": "http://localhost:11434/v1",
+    "api_key": "ollama",
     "temperature": 0.1,
     "max_tokens": 4096,
     "timeout_seconds": 30,
