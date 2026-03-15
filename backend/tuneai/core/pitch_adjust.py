@@ -15,12 +15,12 @@
     此为迭代过程：调整后再次检查 A，直至收敛或达到最大迭代次数。
 
   LLM 辅助
-    检查 A/B 均可引入 LLM 作为辅助评估器（tuneai.core.llm.assess_pitch_range）。
+    检查 A/B 均调用 LLM（tuneai.core.llm.assess_pitch_range）作为评估器，这是确定要做的。
     LLM 失败时退化为纯规则判断，不阻断流程。
 
-MVP 实现
-    两项检查均跳过，原样返回输入的 ScoreIR 和空 Warning 列表。
-    接口与返回类型已固定，未来直接填充实现即可。
+MVP 阶段
+    两项检查暂不实现，原样返回输入的 ScoreIR 和空 Warning 列表。
+    接口与返回类型已固定，后续直接填充实现即可。
 """
 from __future__ import annotations
 
