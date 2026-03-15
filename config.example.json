@@ -1,0 +1,41 @@
+{
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8000
+  },
+  "frontend": {
+    "mode": "template",
+    "build_dir": "frontend/dist",
+    "template_dir": "frontend/templates",
+    "static_dir": "frontend/static"
+  },
+  "api_keys": {
+    "openai": "",
+    "anthropic": "",
+    "paddleocr": ""
+  },
+  "llm": {
+    "provider": "openai",
+    "model": "gpt-4o-mini",
+    "temperature": 0.1,
+    "max_tokens": 4096,
+    "timeout_seconds": 30,
+    "fallback_model": ""
+  },
+  "ocr": {
+    "engine": "paddleocr",
+    "use_gpu": false,
+    "det_db_thresh": 0.3,
+    "rec_batch_num": 6
+  },
+  "pipeline": {
+    "request_timeout_seconds": 30,
+    "temp_dir": "data/outputs",
+    "cleanup_after_response": true
+  },
+  "logging": {
+    "level": "INFO",
+    "format": "json",
+    "request_id_header": "X-Request-ID"
+  }
+}

@@ -4,19 +4,74 @@
 
 ## 目录结构
 
-- `frontend/` — 前端（Jinja2 模板 + 静态资源）
-- `backend/tuneai/` — 后端（FastAPI + 核心流水线）
+- `frontend/` — 前端（**React + Tailwind CSS**，**Vite** 打包，npm 管理依赖）
+- `backend/tuneai/` — 后端（FastAPI + 核心流水线，Poetry 管理 Python 依赖）
 - `data/samples/` — 测试样本；`data/outputs/` — 临时输出
 - `assets/fonts/` — 渲染字体
 - `docs/` — 项目文档
 - `tests/` — 测试
 
+## 依赖管理
+
+- **Python**：Poetry（`pyproject.toml`）
+- **前端**：npm（`frontend/package.json`），React + Tailwind CSS，Vite 构建
+
+## 配置
+
+复制 `config.example.json` 为 `config.json`（项目根目录），按需修改：
+
+- **server**：`host`、`port`
+- **api_keys**：`openai`、`anthropic`、`paddleocr`（也可用环境变量 `TUNEAI_OPENAI_API_KEY` 等覆盖）
+- **llm**：`provider`、`model`、`temperature`、`max_tokens`、`timeout_seconds`、`fallback_model`
+- **ocr**：`engine`、`use_gpu`、检测/识别参数
+- **pipeline**：请求超时、临时目录、是否自动清理
+- **logging**：`level`（DEBUG/INFO/WARNING/ERROR）、`format`（json/text）、`request_id_header`
+- **frontend**：`mode`、`build_dir`（Vite 默认 `frontend/dist`）、`template_dir`、`static_dir`
+
+`config.json` 已加入 `.gitignore`，不会提交；敏感项建议用环境变量覆盖。
+
+### 前端与部署（方案 A，单端口）
+
+前端使用 **React + Tailwind CSS**，由 **Vite** 打包。生产部署采用方案 A：同一端口提供页面与 API。
+
+1. 在 `frontend/` 下执行 `npm run build`，构建产物输出到 `frontend/dist`（可在 config 中通过 `frontend.build_dir` 修改）。
+2. 在 `config.json` 中设置 `"frontend": { "mode": "build", "build_dir": "frontend/dist", ... }`。
+3. 启动后端后，访问同一端口即可：页面与 `POST /api/transpose` 均由后端提供，SPA 路由由后端回退到 `index.html`。
+
 ## 本地运行
 
+### 1. 安装 Python 依赖（Poetry）
+
 ```bash
-pip install -r requirements.txt
-python run.py
-# 或: uvicorn backend.tuneai.main:app --reload
+poetry install
 ```
 
-详见 `docs/项目架构与模块说明.md` 与 `TuneAI_完整执行方案.md`。
+### 2. 安装前端依赖并构建（npm + Vite）
+
+```bash
+cd frontend && npm install && npm run build && cd ..
+```
+
+### 3. 启动后端（托管前端构建产物与 API，单端口）
+
+```bash
+poetry run python run.py
+# 或：poetry run uvicorn tuneai.main:app --reload
+```
+
+访问配置的端口（默认 8000）即可使用上传页与 API。
+
+### 前端开发（热更新，单独端口）
+
+```bash
+cd frontend && npm run dev
+# Vite 开发服务器（如 http://localhost:5173），需配置 API 代理或 CORS 指向后端端口
+```
+
+### 生成 requirements.txt（部署用）
+
+```bash
+poetry export -f requirements.txt -o requirements.txt --without-hashes
+```
+
+详见 `docs/项目架构与模块说明.md` 与 `docs/TuneAI_完整执行方案.md`。
