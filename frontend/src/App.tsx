@@ -10,6 +10,7 @@ import DownloadPanel from './components/DownloadPanel'
 import FullscreenImage from './components/FullscreenImage'
 import TechBackground from './components/TechBackground'
 import AIBadge from './components/AIBadge'
+import ScoreView from './components/ScoreView'
 
 const MAX_SIZE_MB = 20
 
@@ -45,6 +46,10 @@ export default function App() {
   const [targetKey, setTargetKey] = useState<TargetKey>('C')
   const [controlError, setControlError] = useState<string | null>(null)
   const [pageState, setPageState] = useState<PageState>({ status: 'idle' })
+  
+  // 左右面板的视图模式：'image' | 'json'
+  const [leftViewMode, setLeftViewMode] = useState<'image' | 'json'>('image')
+  const [rightViewMode, setRightViewMode] = useState<'image' | 'json'>('image')
 
   // 为选中的文件维护 object URL，清除时 revoke
   useEffect(() => {
@@ -218,6 +223,31 @@ export default function App() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                {/* 视图切换按钮 - 仅在有内容时显示 */}
+                {pageState.status === 'success' && (
+                  <button
+                    type="button"
+                    onClick={() => setLeftViewMode(prev => prev === 'image' ? 'json' : 'image')}
+                    className="inline-flex items-center gap-1.5 rounded border border-cyan-500/30 bg-slate-900/60 px-2 py-1 text-[10px] font-medium text-cyan-300 transition-all hover:border-cyan-400/50 hover:bg-cyan-500/10"
+                    title={leftViewMode === 'image' ? '切换到解析数据' : '切换到图片'}
+                  >
+                    {leftViewMode === 'image' ? (
+                      <>
+                        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                        </svg>
+                        <span className="hidden sm:inline">JSON</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <span className="hidden sm:inline">IMG</span>
+                      </>
+                    )}
+                  </button>
+                )}
                 <span className="font-mono text-xs text-cyan-500/40">SRC</span>
                 {selectedFile && !isLoading && (
                   <button
@@ -241,7 +271,9 @@ export default function App() {
               <div className="absolute bottom-2 left-2 h-3 w-3 border-b border-l border-cyan-500/30" />
               <div className="absolute bottom-2 right-2 h-3 w-3 border-b border-r border-cyan-500/30" />
               
-              {leftImageUrl ? (
+              {pageState.status === 'success' && leftViewMode === 'json' ? (
+                <ScoreView scoreJson={pageState.scoreJson} className="flex-1" />
+              ) : leftImageUrl ? (
                 <FullscreenImage
                   src={leftImageUrl}
                   alt="简谱原图"
@@ -267,7 +299,34 @@ export default function App() {
                 </div>
                 <span className="font-semibold">OUTPUT_01</span>
               </div>
-              <span className="font-mono text-xs text-purple-500/40">AI GEN</span>
+              <div className="flex items-center gap-2">
+                {/* 视图切换按钮 - 仅在有内容时显示 */}
+                {pageState.status === 'success' && (
+                  <button
+                    type="button"
+                    onClick={() => setRightViewMode(prev => prev === 'image' ? 'json' : 'image')}
+                    className="inline-flex items-center gap-1.5 rounded border border-purple-500/30 bg-slate-900/60 px-2 py-1 text-[10px] font-medium text-purple-300 transition-all hover:border-purple-400/50 hover:bg-purple-500/10"
+                    title={rightViewMode === 'image' ? '切换到解析数据' : '切换到图片'}
+                  >
+                    {rightViewMode === 'image' ? (
+                      <>
+                        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                        </svg>
+                        <span className="hidden sm:inline">JSON</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <span className="hidden sm:inline">IMG</span>
+                      </>
+                    )}
+                  </button>
+                )}
+                <span className="font-mono text-xs text-purple-500/40">AI GEN</span>
+              </div>
             </div>
             <div className="relative flex min-h-[320px] flex-1 flex-col bg-slate-950/50">
               {/* 角落装饰 */}
@@ -318,15 +377,19 @@ export default function App() {
                 </div>
               )}
               {pageState.status === 'success' && (
-                <FullscreenImage
-                  src={
-                    pageState.outputImage.startsWith('data:')
-                      ? pageState.outputImage
-                      : `data:image/png;base64,${pageState.outputImage}`
-                  }
-                  alt="移调后的简谱"
-                  className="flex-1 p-4"
-                />
+                rightViewMode === 'json' ? (
+                  <ScoreView scoreJson={pageState.scoreJson} className="flex-1" />
+                ) : (
+                  <FullscreenImage
+                    src={
+                      pageState.outputImage.startsWith('data:')
+                        ? pageState.outputImage
+                        : `data:image/png;base64,${pageState.outputImage}`
+                    }
+                    alt="移调后的简谱"
+                    className="flex-1 p-4"
+                  />
+                )
               )}
             </div>
           </div>
