@@ -22,7 +22,7 @@ from tuneai.core.llm import (
     MeasureCorrectionResult,
     _fallback_key_parse,
     correct_key_signature,
-    correct_low_confidence_measure,
+    correct_low_confidence_events,
 )
 
 
@@ -98,7 +98,7 @@ class TestStructuredMethod:
         with (
             patch("tuneai.core.llm._get_llm", return_value=mock_llm),
             patch(
-                "tuneai.core.llm.get_llm_config",
+                "tuneai.config.get_llm_config",
                 return_value={"structured_output_method": method_cfg},
             ),
         ):
@@ -123,7 +123,7 @@ class TestStructuredMethod:
         mock_llm.with_structured_output.return_value = MagicMock()
         with (
             patch("tuneai.core.llm._get_llm", return_value=mock_llm),
-            patch("tuneai.core.llm.get_llm_config", return_value={}),
+            patch("tuneai.config.get_llm_config", return_value={}),
         ):
             from tuneai.core.llm import _structured
             _structured(KeyCorrectionResult)
@@ -135,7 +135,7 @@ class TestStructuredMethod:
 # correct_low_confidence_measure
 # ---------------------------------------------------------------------------
 
-class TestCorrectLowConfidenceMeasure:
+class TestCorrectLowConfidenceEvents:
 
     _sample_tokens = [
         {"id": "n0", "type": "note", "degree": 1, "accidental": "natural", "confidence": 0.95},
@@ -147,8 +147,8 @@ class TestCorrectLowConfidenceMeasure:
             events=self._sample_tokens, confidence=0.92, notes="已纠正"
         )
         with patch("tuneai.core.llm._structured", return_value=_make_structured_mock(expected)):
-            result = correct_low_confidence_measure(
-                self._sample_tokens, "aGVsbG8=", "C", "req_test"
+            result = correct_low_confidence_events(
+                self._sample_tokens, "C", "req_test"
             )
         assert result.confidence == pytest.approx(0.92)
 
@@ -156,7 +156,7 @@ class TestCorrectLowConfidenceMeasure:
         expected = MeasureCorrectionResult(events=[], confidence=0.9)
         mock_chain = _make_structured_mock(expected)
         with patch("tuneai.core.llm._structured", return_value=mock_chain):
-            correct_low_confidence_measure(self._sample_tokens, "", "Bb", "req_test")
+            correct_low_confidence_events(self._sample_tokens, "Bb", "req_test")
         prompt = mock_chain.invoke.call_args[0][0]
         assert "Bb" in prompt
 
@@ -164,8 +164,8 @@ class TestCorrectLowConfidenceMeasure:
         chain = MagicMock()
         chain.invoke.side_effect = TimeoutError("LLM timeout")
         with patch("tuneai.core.llm._structured", return_value=chain):
-            result = correct_low_confidence_measure(
-                self._sample_tokens, "", "G", "req_test"
+            result = correct_low_confidence_events(
+                self._sample_tokens, "G", "req_test"
             )
         assert result.events == self._sample_tokens
         assert result.confidence == pytest.approx(0.5)
@@ -175,7 +175,7 @@ class TestCorrectLowConfidenceMeasure:
         """空 token 列表也能正常处理。"""
         expected = MeasureCorrectionResult(events=[], confidence=1.0)
         with patch("tuneai.core.llm._structured", return_value=_make_structured_mock(expected)):
-            result = correct_low_confidence_measure([], "", "C", "req_test")
+            result = correct_low_confidence_events([], "C", "req_test")
         assert result.events == []
 
 
@@ -198,8 +198,7 @@ class TestCreateLlm:
             "disable_parallel_tool_calls": True,
         }
         with (
-            patch("tuneai.core.llm.get_llm_config", return_value=cfg),
-            patch("tuneai.core.llm.get_api_key", return_value=""),
+            patch("tuneai.config.get_llm_config", return_value=cfg),
             patch("langchain_openai.ChatOpenAI", mock_cls),
         ):
             from tuneai.core.llm import _create_llm
@@ -219,8 +218,7 @@ class TestCreateLlm:
             "disable_parallel_tool_calls": False,
         }
         with (
-            patch("tuneai.core.llm.get_llm_config", return_value=cfg),
-            patch("tuneai.core.llm.get_api_key", return_value=""),
+            patch("tuneai.config.get_llm_config", return_value=cfg),
             patch("langchain_openai.ChatOpenAI", mock_cls),
         ):
             from tuneai.core.llm import _create_llm
@@ -234,8 +232,7 @@ class TestCreateLlm:
         mock_cls = MagicMock()
         cfg = {"model": "gpt-4o-mini", "timeout_seconds": 45}
         with (
-            patch("tuneai.core.llm.get_llm_config", return_value=cfg),
-            patch("tuneai.core.llm.get_api_key", return_value=""),
+            patch("tuneai.config.get_llm_config", return_value=cfg),
             patch("langchain_openai.ChatOpenAI", mock_cls),
         ):
             from tuneai.core.llm import _create_llm

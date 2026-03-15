@@ -36,6 +36,20 @@ class MeasureCorrectionResult(BaseModel):
     notes: str         = Field(default="", description="补充说明")
 
 
+class PitchAssessmentResult(BaseModel):
+    too_high: bool     = Field(description="转调后整体音域是否偏高")
+    octave_adjust: int = Field(default=0, description="建议八度调整量（0=不变，-1=降低一个八度）")
+    accidental_ratio: float = Field(
+        default=0.0, description="半音（非 natural）音符占比 0-1", ge=0.0, le=1.0
+    )
+    suggested_key: str | None = Field(
+        default=None,
+        description="半音过多时建议的替代目标调（None=保持当前调）",
+    )
+    confidence: float  = Field(default=1.0, description="置信度 0-1", ge=0.0, le=1.0)
+    notes: str         = Field(default="", description="补充说明")
+
+
 # ---------------------------------------------------------------------------
 # LLM 单例
 # ---------------------------------------------------------------------------
@@ -163,6 +177,38 @@ def correct_low_confidence_events(
             confidence=0.5,
             notes=f"LLM 调用失败: {type(e).__name__}: {e}",
         )
+
+
+# ---------------------------------------------------------------------------
+# 任务 C：音高范围评估（供 pitch_adjust.py 调用）
+# ---------------------------------------------------------------------------
+
+def assess_pitch_range(
+    events: list[dict],
+    source_key: str,
+    target_key: str,
+    request_id: str = "",
+) -> PitchAssessmentResult:
+    """
+    评估转调后的音符序列是否整体音域偏高，以及半音是否过多。
+
+    MVP：直接返回"无需调整"的默认结果，不调用 LLM。
+
+    完整实现时：
+      - 调用 LLM 分析 events 中 octave_shift 分布与 accidental 比例
+      - LLM 返回 too_high / octave_adjust / suggested_key
+      - 失败时降级为纯规则判断（octave_shift 均值 > 0.5 视为偏高）
+    """
+    log = get_logger("llm")
+    log.debug(f"assess_pitch_range: MVP stub, {source_key}→{target_key}, {len(events)} events")
+    return PitchAssessmentResult(
+        too_high=False,
+        octave_adjust=0,
+        accidental_ratio=0.0,
+        suggested_key=None,
+        confidence=1.0,
+        notes="MVP stub: no assessment performed",
+    )
 
 
 # ---------------------------------------------------------------------------

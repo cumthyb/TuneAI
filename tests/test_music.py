@@ -13,7 +13,7 @@ from tuneai.core.music import (
     transpose_score_ir,
     validate_target_key,
 )
-from tuneai.schemas.score_ir import KeyInfo, Measure, NoteEvent, ScoreIR
+from tuneai.schemas.score_ir import KeyInfo, NoteEvent, ScoreIR
 
 
 # ---------------------------------------------------------------------------
@@ -95,42 +95,52 @@ class TestAccidentalPreference:
 
 
 # ---------------------------------------------------------------------------
-# Example A (docs §8.4): 1=G → 1=C, delta=+5
-# Notes "5 6 1" → "2 3 5"
+# 辅助
 # ---------------------------------------------------------------------------
 
-def _make_score(tonic: str, degrees: list[int]) -> ScoreIR:
+def _make_score(tonic: str, notes: list[tuple[int, str, int]]) -> ScoreIR:
+    """notes: list of (degree, accidental, octave_shift)"""
     events = [
-        NoteEvent(id=f"n{i}", degree=d, accidental="natural", octave_shift=0)
-        for i, d in enumerate(degrees)
+        NoteEvent(id=f"n{i}", degree=d, accidental=a, octave_shift=o)
+        for i, (d, a, o) in enumerate(notes)
     ]
     return ScoreIR(
         score_id="test",
         source_key=KeyInfo(label=f"1={tonic}", tonic=tonic),
         target_key=KeyInfo(label=f"1={tonic}", tonic=tonic),
-        measures=[Measure(number=1, events=events)],
+        events=events,
     )
 
 
-class TestExampleA:
-    """1=G, notes 5 6 1 → 1=C, notes 2 3 5 (delta=+5)"""
+def _nat(degrees: list[int]) -> list[tuple[int, str, int]]:
+    """快速构造 natural 音符列表。"""
+    return [(d, "natural", 0) for d in degrees]
 
-    def test_transpose(self):
-        score = _make_score("G", [5, 6, 1])
+
+# ---------------------------------------------------------------------------
+# Example A (docs §8.4): 1=G → 1=C, delta=+5
+# 音符相对主音的偏移不变，仅按目标调偏好重编码
+# G 调 "5 6 1" 的偏移: 7, 9, 0 → C 调对应 degree 5, 6, 1
+# ---------------------------------------------------------------------------
+
+class TestExampleA:
+    """1=G, notes 5 6 1 → 1=C, notes 5 6 1（偏移相同，大调度数相同）"""
+
+    def test_transpose_567(self):
+        score = _make_score("G", _nat([5, 6, 1]))
         result = transpose_score_ir(score, "C")
-        ev = result.measures[0].events
-        assert ev[0].degree == 2   # D in G → D in C = degree 2
-        assert ev[1].degree == 3   # E in G → E in C = degree 3
-        assert ev[2].degree == 5   # G in G → G in C = degree 5
+        ev = result.events
+        assert ev[0].degree == 5   # offset 7 → 5 in C
+        assert ev[1].degree == 6   # offset 9 → 6 in C
+        assert ev[2].degree == 1   # offset 0 → 1 in C
 
     def test_octave_shift_preserved(self):
-        """移调不改变 octave_shift。"""
-        score = _make_score("G", [1])
+        score = _make_score("G", [(1, "natural", 1)])
         result = transpose_score_ir(score, "C")
-        assert result.measures[0].events[0].octave_shift == 0
+        assert result.events[0].octave_shift == 1
 
     def test_target_key_updated(self):
-        score = _make_score("G", [1])
+        score = _make_score("G", _nat([1]))
         result = transpose_score_ir(score, "C")
         assert result.target_key.tonic == "C"
         assert result.target_key.label == "1=C"
@@ -138,22 +148,30 @@ class TestExampleA:
 
 # ---------------------------------------------------------------------------
 # Example B: 1=D → 1=C (delta=-2)
+# D 调 degree=3 (F#) offset=4 → C 调: SHARP_ENCODING[4]=(3,"natural") → degree 3
+# D 调 degree=1 (D)   offset=0 → C 调: degree 1
 # ---------------------------------------------------------------------------
 
 class TestExampleB:
     def test_degree1_d_to_c(self):
-        """D 调的 1（=D 音）→ C 调的 2（=D 音）。"""
-        score = _make_score("D", [1])
+        """D 调的 1（offset=0）→ C 调的 1（offset=0 不变）。"""
+        score = _make_score("D", _nat([1]))
         result = transpose_score_ir(score, "C")
-        assert result.measures[0].events[0].degree == 2
+        assert result.events[0].degree == 1
 
     def test_degree3_d_to_c(self):
-        """D 调的 3（=F#）→ C 调的 #4（F# 在 C 调为升四度）。"""
-        score = _make_score("D", [3])
+        """D 调的 3（offset=4, F#）→ C 调的 3 natural（offset=4, E）。"""
+        score = _make_score("D", _nat([3]))
         result = transpose_score_ir(score, "C")
-        ev = result.measures[0].events[0]
-        assert ev.degree == 4
-        assert ev.accidental == "sharp"
+        ev = result.events[0]
+        assert ev.degree == 3
+        assert ev.accidental == "natural"
+
+    def test_degree2_d_to_c(self):
+        """D 调的 2（offset=2, E）→ C 调的 2（offset=2, D）。"""
+        score = _make_score("D", _nat([2]))
+        result = transpose_score_ir(score, "C")
+        assert result.events[0].degree == 2
 
 
 # ---------------------------------------------------------------------------
@@ -170,6 +188,71 @@ class TestEnharmonicSpelling:
         """G 调（升号调），offset 1 应编为 #1，不是 b2。"""
         d, a, _ = encode_note(1, prefer_sharps=True)
         assert d == 1 and a == "sharp"
+
+    def test_transpose_accidental_g_to_c_sharp4(self):
+        """1=G 调 #4（offset=6）→ 1=C 调应为 #4（C 是升号调）。"""
+        score = _make_score("G", [(4, "sharp", 0)])
+        result = transpose_score_ir(score, "C")
+        ev = result.events[0]
+        assert ev.degree == 4 and ev.accidental == "sharp"
+
+    def test_transpose_accidental_g_to_f_b5(self):
+        """1=G 调 #4（offset=6）→ 1=F 调应为 b5（F 是降号调）。"""
+        score = _make_score("G", [(4, "sharp", 0)])
+        result = transpose_score_ir(score, "F")
+        ev = result.events[0]
+        assert ev.degree == 5 and ev.accidental == "flat"
+
+
+# ---------------------------------------------------------------------------
+# 边界：跨八度临时记号（7# 和 1b）
+# ---------------------------------------------------------------------------
+
+class TestOctaveBoundaryAccidentals:
+    """
+    7# (offset=12) 和 1b (offset=-1) 是跨越八度界的临时记号。
+    移调后应正确调整 octave_shift。
+    """
+
+    def test_7sharp_becomes_1_octave_up(self):
+        """
+        7# 相对主音偏移 12 semitones = 下一个八度的主音。
+        移调后应编码为 degree=1, natural, octave_shift+1。
+        """
+        score = _make_score("C", [(7, "sharp", 0)])
+        result = transpose_score_ir(score, "C")
+        ev = result.events[0]
+        assert ev.degree == 1
+        assert ev.accidental == "natural"
+        assert ev.octave_shift == 1  # 跨八度，+1
+
+    def test_7sharp_with_existing_octave(self):
+        """7# 带有 octave_shift=1，移调后 octave_shift 应为 2。"""
+        score = _make_score("G", [(7, "sharp", 1)])
+        result = transpose_score_ir(score, "C")
+        ev = result.events[0]
+        assert ev.degree == 1
+        assert ev.octave_shift == 2
+
+    def test_1flat_becomes_7_octave_down(self):
+        """
+        1b 相对主音偏移 -1 semitone = 下方八度的 7 natural。
+        移调后应编码为 degree=7, natural, octave_shift-1。
+        """
+        score = _make_score("C", [(1, "flat", 0)])
+        result = transpose_score_ir(score, "C")
+        ev = result.events[0]
+        assert ev.degree == 7
+        assert ev.accidental == "natural"
+        assert ev.octave_shift == -1  # 跨八度，-1
+
+    def test_1flat_with_existing_octave(self):
+        """1b 带有 octave_shift=-1，移调后 octave_shift 应为 -2。"""
+        score = _make_score("C", [(1, "flat", -1)])
+        result = transpose_score_ir(score, "C")
+        ev = result.events[0]
+        assert ev.degree == 7
+        assert ev.octave_shift == -2
 
 
 # ---------------------------------------------------------------------------

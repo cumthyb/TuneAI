@@ -114,24 +114,34 @@ async def run_pipeline(
         transposed = transpose_score_ir(score_ir, target_key)
         log.debug(f"[4/5] transpose done ({_ms(t)}ms): {source_tonic} → {target_key}")
 
-        # ── Stage 5: Validate + Render ───────────────────────────────────────
+        # ── Stage 5: Validate ────────────────────────────────────────────────
         t = time.monotonic()
         from tuneai.core.validate import validate_score
-        warnings.extend(validate_score(transposed))
+        warnings.extend(validate_score(transposed, original_image=clean_image, request_id=request_id))
+        log.debug(f"[5/7] validate done ({_ms(t)}ms), warnings={len(warnings)}")
 
+        # ── Stage 6: Pitch Adjust ─────────────────────────────────────────────
+        t = time.monotonic()
+        from tuneai.core.pitch_adjust import adjust_pitch
+        adjusted, pitch_warnings = adjust_pitch(transposed, request_id=request_id)
+        warnings.extend(pitch_warnings)
+        log.debug(f"[6/7] pitch_adjust done ({_ms(t)}ms), pitch_warnings={len(pitch_warnings)}")
+
+        # ── Stage 7: Render ───────────────────────────────────────────────────
+        t = time.monotonic()
         from tuneai.core.render import render_output
-        output_png_bytes = render_output(image_bytes, score_ir, transposed)
+        output_png_bytes = render_output(image_bytes, score_ir, adjusted)
         output_b64 = base64.b64encode(output_png_bytes).decode()
 
         save_output_image(request_id, output_png_bytes)
-        log.debug(f"[5/5] render done ({_ms(t)}ms), warnings={len(warnings)}")
+        log.debug(f"[7/7] render done ({_ms(t)}ms), warnings={len(warnings)}")
 
         processing_time_ms = int((time.monotonic() - t_start) * 1000)
         log.info(f"pipeline completed in {processing_time_ms}ms, warnings={len(warnings)}")
 
         return PipelineResult(
             output_image_b64=output_b64,
-            score_ir=transposed,
+            score_ir=adjusted,
             warnings=warnings,
             processing_time_ms=processing_time_ms,
         )
