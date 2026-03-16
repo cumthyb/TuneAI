@@ -58,7 +58,7 @@ def _list_providers_with_ocr() -> list[str]:
 
 def _pick_default_provider(candidates: list[str], preferred: str, capability: str) -> str:
     if not candidates:
-        raise ValueError(f"no providers configured for {capability}")
+        return ""
     if preferred in candidates:
         return preferred
     return candidates[0]

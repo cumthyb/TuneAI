@@ -80,6 +80,9 @@ async function checkServiceStatus(): Promise<{
     if (!isApiMetaResponse(data)) {
       return { systemOnline: true, apiReady: false, meta: null, errorMessage: META_CONFIG_ERROR_MESSAGE }
     }
+    if (!data.llm_providers.length || !data.vision_llm_providers.length || !data.ocr_providers.length) {
+      return { systemOnline: true, apiReady: false, meta: null, errorMessage: '未配置 API Key，请在 config.json 中填写 providers 的 api_key' }
+    }
     return { systemOnline: true, apiReady: true, meta: data, errorMessage: null }
   } catch {
     return { systemOnline: false, apiReady: false, meta: null, errorMessage: '无法连接后端服务，请确认服务已启动' }

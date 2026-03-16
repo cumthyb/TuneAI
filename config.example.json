@@ -15,7 +15,7 @@
       "llm": {
         "api_key": "",
         "base_url": "",
-        "model": "glm-5",
+        "model": "glm-4-plus",
         "temperature": 0.1,
         "max_tokens": 1024,
         "timeout_seconds": 30,
@@ -28,7 +28,7 @@
       "vision_llm": {
         "api_key": "",
         "base_url": "",
-        "model": "glm-4.6v",
+        "model": "glm-4v-plus",
         "timeout_seconds": 30,
         "client_class": "langchain_openai.ChatOpenAI",
         "client_kwargs": {},
@@ -36,10 +36,9 @@
         "extra_body": {}
       },
       "ocr": {
-        "runner": "tuneai.core.adapters.ocr.providers.glm:run_glm_ocr",
         "api_key": "",
         "base_url": "https://open.bigmodel.cn/api/paas/v4",
-        "model": "glm-4.6v",
+        "model": "glm-4v-plus",
         "timeout_seconds": 30,
         "max_tokens": 4096
       }
@@ -48,7 +47,7 @@
       "llm": {
         "api_key": "",
         "base_url": "",
-        "model": "qwen3.5-plus",
+        "model": "qwen-plus",
         "temperature": 0.1,
         "max_tokens": 1024,
         "timeout_seconds": 30,
@@ -61,7 +60,7 @@
       "vision_llm": {
         "api_key": "",
         "base_url": "",
-        "model": "qwen3-vl-plus",
+        "model": "qwen-vl-plus",
         "timeout_seconds": 30,
         "client_class": "langchain_openai.ChatOpenAI",
         "client_kwargs": {},
@@ -69,7 +68,6 @@
         "extra_body": {}
       },
       "ocr": {
-        "runner": "tuneai.core.adapters.ocr.providers.qwen:run_qwen_ocr",
         "api_key": "",
         "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
         "model": "qwen-vl-ocr-latest",
@@ -82,13 +80,11 @@
     "request_timeout_seconds": 60,
     "max_image_size_mb": 20,
     "outputs_dir": "data/outputs",
-    "samples_dir": "data/samples",
     "cleanup_after_response": true
   },
   "logging": {
     "level": "INFO",
     "format": "json",
-    "request_id_header": "X-Request-ID",
     "log_dir": "data/logs",
     "log_file": "tuneai.log",
     "rotation": "10 MB",
