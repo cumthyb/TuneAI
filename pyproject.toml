@@ -28,6 +28,7 @@ zhipuai-langchain = "^0.1.202402031501"
 dashscope = "^1.25.14"
 zhipuai = "^2.1.5.20250825"
 music21 = "^9.9.1"
+jianpu-ly = "^1.865"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8"

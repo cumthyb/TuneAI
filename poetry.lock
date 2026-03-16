@@ -1403,6 +1403,17 @@ files = [
 ]
 
 [[package]]
+name = "jianpu-ly"
+version = "1.865"
+description = "Jianpu in Lilypond"
+optional = false
+python-versions = ">=2.6"
+groups = ["main"]
+files = [
+    {file = "jianpu_ly-1.865.tar.gz", hash = "sha256:7d6e2aa1a0eb3992fea0a44f58865bbee652382b2b583c3442c3b8afa48907f6"},
+]
+
+[[package]]
 name = "jiter"
 version = "0.13.0"
 description = "Fast iterable JSON parser."
@@ -4550,4 +4561,4 @@ cffi = ["cffi (>=1.17,<2.0) ; platform_python_implementation != \"PyPy\" and pyt
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<3.14"
-content-hash = "8f28de872bf88c3b496adbaa6d967d67ad0e9fe7939b46991647d8d20e2379d1"
+content-hash = "8908899702ee9fd49ee7701489dc4fc6368efd3fecc94da09ed1a2fc31644a8b"
