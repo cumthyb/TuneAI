@@ -5,16 +5,11 @@ import FullscreenImage from './FullscreenImage'
 import ScoreView from './ScoreView'
 
 interface OutputPanelProps {
-  pageState: 
+  pageState:
     | { status: 'idle' }
     | { status: 'loading' }
     | { status: 'error'; error: string; errorCode?: string; requestId?: string }
-    | { 
-        status: 'success'
-        outputImage: string
-        scoreJson: ScoreJson
-        requestId: string
-      }
+    | { status: 'success'; outputImage: string; scoreJson: ScoreJson; requestId: string }
   onRetry: () => void
 }
 
@@ -38,9 +33,8 @@ export default function OutputPanel({ pageState, onRetry }: OutputPanelProps) {
           </div>
           <span className="font-semibold">OUTPUT_01</span>
         </div>
-        
+
         <div className="flex items-center gap-2">
-          {/* 视图切换按钮 */}
           {isSuccess && (
             <button
               type="button"
@@ -70,12 +64,11 @@ export default function OutputPanel({ pageState, onRetry }: OutputPanelProps) {
 
       {/* 内容区域 */}
       <div className="relative flex min-h-[320px] flex-1 flex-col bg-slate-950/50">
-        {/* 角落装饰 */}
         <div className="absolute left-2 top-2 h-3 w-3 border-l border-t border-purple-500/30" />
         <div className="absolute right-2 top-2 h-3 w-3 border-r border-t border-purple-500/30" />
         <div className="absolute bottom-2 left-2 h-3 w-3 border-b border-l border-purple-500/30" />
         <div className="absolute bottom-2 right-2 h-3 w-3 border-b border-r border-purple-500/30" />
-        
+
         {pageState.status === 'idle' && (
           <div className="flex flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-cyan-500/20 bg-slate-900/30 p-8 text-center">
             <div className="mb-4 relative">
@@ -87,9 +80,7 @@ export default function OutputPanel({ pageState, onRetry }: OutputPanelProps) {
               </div>
             </div>
             <p className="text-slate-300 font-medium">等待处理</p>
-            <p className="mt-1 text-xs text-slate-500 font-mono">
-              UPLOAD SOURCE → INIT TRANSPOSITION
-            </p>
+            <p className="mt-1 text-xs text-slate-500 font-mono">UPLOAD SOURCE → INIT TRANSPOSITION</p>
           </div>
         )}
 
@@ -102,21 +93,35 @@ export default function OutputPanel({ pageState, onRetry }: OutputPanelProps) {
                 ANALYZING PATTERN
               </div>
               <div className="h-px w-32 bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent" />
-              <div className="font-mono text-[10px] text-slate-600">
-                NEURAL NETWORK: ACTIVE
-              </div>
+              <div className="font-mono text-[10px] text-slate-600">NEURAL NETWORK: ACTIVE</div>
             </div>
           </div>
         )}
 
         {pageState.status === 'error' && (
           <div className="flex flex-1 flex-col items-center justify-center p-8">
-            <LoadingState
-              error={pageState.error}
-              errorCode={pageState.errorCode}
-              requestId={pageState.requestId}
-              onRetry={onRetry}
-            />
+            <div className="rounded-2xl border border-red-500/30 bg-red-950/40 p-6 text-center backdrop-blur-xl">
+              <div className="mb-4 inline-flex rounded-full bg-red-500/20 p-3">
+                <svg className="h-8 w-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <p className="font-medium text-red-300">{pageState.error}</p>
+              {pageState.errorCode && <p className="mt-1 text-sm text-red-400/80">错误码：{pageState.errorCode}</p>}
+              {pageState.requestId && (
+                <p className="mt-2 font-mono text-xs text-slate-500">request_id: {pageState.requestId}</p>
+              )}
+              <button
+                type="button"
+                onClick={onRetry}
+                className="mt-5 inline-flex items-center gap-2 rounded-xl bg-red-600/80 px-5 py-2.5 text-sm font-medium text-white backdrop-blur-sm transition-all hover:bg-red-600 hover:shadow-lg hover:shadow-red-500/30"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                重新上传
+              </button>
+            </div>
           </div>
         )}
 
@@ -128,7 +133,6 @@ export default function OutputPanel({ pageState, onRetry }: OutputPanelProps) {
               src={`data:image/png;base64,${pageState.outputImage}`}
               alt="移调后的简谱"
               className="flex-1 p-4"
-              imgClassName=""
             />
           )
         )}

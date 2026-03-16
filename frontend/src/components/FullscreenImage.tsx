@@ -1,24 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-export interface FullscreenImageProps {
+interface FullscreenImageProps {
   src: string
   alt: string
-  /** 外层容器类名，用于与父布局配合 */
   className: string
-  /** 图片类名 */
-  imgClassName: string
 }
 
-/**
- * 使用 Fullscreen API 支持全屏查看的图片预览器。
- * 点击「全屏」将当前容器全屏，ESC 或「退出全屏」可退出。
- */
-export default function FullscreenImage({
-  src,
-  alt,
-  className,
-  imgClassName,
-}: FullscreenImageProps) {
+export default function FullscreenImage({ src, alt, className }: FullscreenImageProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
 
@@ -54,10 +42,9 @@ export default function FullscreenImage({
       <img
         src={src}
         alt={alt}
-        className={`max-h-full max-w-full object-contain transition-transform duration-300 ${imgClassName}`}
+        className="max-h-full max-w-full object-contain transition-transform duration-300"
       />
 
-      {/* 右上角全屏/退出按钮 */}
       <button
         type="button"
         onClick={toggleFullscreen}
@@ -81,7 +68,6 @@ export default function FullscreenImage({
         )}
       </button>
 
-      {/* 底部悬浮信息栏（仅显示文件名） */}
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/90 to-transparent p-4 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
         <span className="text-xs text-slate-400">{alt}</span>
       </div>

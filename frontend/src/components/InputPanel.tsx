@@ -104,7 +104,6 @@ export default function InputPanel({
             src={leftImageUrl}
             alt="简谱原图"
             className="flex-1 p-4"
-            imgClassName=""
           />
         ) : (
           <Dropzone
