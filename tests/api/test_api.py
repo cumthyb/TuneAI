@@ -9,6 +9,18 @@ import pytest
 from fastapi.testclient import TestClient
 
 
+def _strict_data(**overrides):
+    data = {
+        "target_key": "C",
+        "provider": "glm",
+        "llm_provider": "glm",
+        "vision_llm_provider": "glm",
+        "ocr_provider": "glm",
+    }
+    data.update(overrides)
+    return data
+
+
 @pytest.fixture(scope="module")
 def client():
     mock_result = MagicMock()
@@ -25,6 +37,25 @@ def client():
             yield c
 
 
+@pytest.fixture(autouse=True)
+def strict_route_contract():
+    with (
+        patch("tuneai.api.routes._list_providers_with_llm", return_value=["glm"]),
+        patch("tuneai.api.routes._list_providers_with_vision_llm", return_value=["glm"]),
+        patch("tuneai.api.routes._list_providers_with_ocr", return_value=["glm"]),
+        patch("tuneai.api.routes.get_default_provider", return_value="glm"),
+        patch(
+            "tuneai.api.routes.get_pipeline_config",
+            return_value={
+                "max_image_size_mb": 20,
+                "request_timeout_seconds": 30,
+                "cleanup_after_response": False,
+            },
+        ),
+    ):
+        yield
+
+
 class TestMissingFields:
     def test_no_fields(self, client):
         assert client.post("/api/transpose").status_code == 422
@@ -36,6 +67,20 @@ class TestMissingFields:
         resp = client.post(
             "/api/transpose",
             files={"image": ("test.png", io.BytesIO(minimal_png_bytes), "image/png")},
+            data={
+                "provider": "glm",
+                "llm_provider": "glm",
+                "vision_llm_provider": "glm",
+                "ocr_provider": "glm",
+            },
+        )
+        assert resp.status_code == 422
+
+    def test_missing_provider_fields(self, client, minimal_png_bytes):
+        resp = client.post(
+            "/api/transpose",
+            files={"image": ("test.png", io.BytesIO(minimal_png_bytes), "image/png")},
+            data={"target_key": "C"},
         )
         assert resp.status_code == 422
 
@@ -45,7 +90,7 @@ class TestValidationErrors:
         resp = client.post(
             "/api/transpose",
             files={"image": ("test.png", io.BytesIO(minimal_png_bytes), "image/png")},
-            data={"target_key": "X"},
+            data=_strict_data(target_key="X"),
         )
         assert resp.status_code == 400
         assert resp.json()["error_code"] == "INVALID_TARGET_KEY"
@@ -54,7 +99,7 @@ class TestValidationErrors:
         resp = client.post(
             "/api/transpose",
             files={"image": ("score.txt", io.BytesIO(b"hello"), "text/plain")},
-            data={"target_key": "C"},
+            data=_strict_data(),
         )
         assert resp.status_code == 415
         assert resp.json()["error_code"] == "INVALID_IMAGE_FORMAT"
@@ -63,10 +108,19 @@ class TestValidationErrors:
         resp = client.post(
             "/api/transpose",
             files={"image": ("score.png", io.BytesIO(b""), "image/png")},
-            data={"target_key": "C"},
+            data=_strict_data(),
         )
         assert resp.status_code == 400
         assert resp.json()["error_code"] == "EMPTY_IMAGE"
+
+    def test_missing_content_type(self, client, minimal_png_bytes):
+        resp = client.post(
+            "/api/transpose",
+            files={"image": ("score.png", io.BytesIO(minimal_png_bytes), "")},
+            data=_strict_data(),
+        )
+        assert resp.status_code == 400
+        assert resp.json()["error_code"] == "MISSING_IMAGE_CONTENT_TYPE"
 
 
 class TestRuntimeErrors:
@@ -76,7 +130,14 @@ class TestRuntimeErrors:
             return MagicMock()
 
         with (
-            patch("tuneai.api.routes.get_pipeline_config", return_value={"request_timeout_seconds": 0.001}),
+            patch(
+                "tuneai.api.routes.get_pipeline_config",
+                return_value={
+                    "max_image_size_mb": 20,
+                    "request_timeout_seconds": 0.001,
+                    "cleanup_after_response": False,
+                },
+            ),
             patch("tuneai.api.routes.run_pipeline", new=AsyncMock(side_effect=_slow)),
         ):
             from tuneai.main import app
@@ -84,7 +145,7 @@ class TestRuntimeErrors:
                 resp = c.post(
                     "/api/transpose",
                     files={"image": ("score.png", io.BytesIO(minimal_png_bytes), "image/png")},
-                    data={"target_key": "C"},
+                    data=_strict_data(),
                 )
         assert resp.status_code == 504
         assert resp.json()["error_code"] == "REQUEST_TIMEOUT"
@@ -101,7 +162,7 @@ class TestRuntimeErrors:
                 resp = c.post(
                     "/api/transpose",
                     files={"image": ("score.png", io.BytesIO(minimal_png_bytes), "image/png")},
-                    data={"target_key": "C"},
+                    data=_strict_data(),
                 )
         assert resp.status_code == 422
         assert resp.json()["error_code"] == "NO_NOTES_FOUND"
@@ -118,7 +179,7 @@ class TestRuntimeErrors:
                 resp = c.post(
                     "/api/transpose",
                     files={"image": ("score.png", io.BytesIO(minimal_png_bytes), "image/png")},
-                    data={"target_key": "C"},
+                    data=_strict_data(),
                 )
         assert resp.status_code == 500
         assert resp.json()["error_code"] == "PIPELINE_ERROR"
@@ -129,7 +190,7 @@ class TestSuccessResponse:
         resp = client.post(
             "/api/transpose",
             files={"image": ("score.png", io.BytesIO(minimal_png_bytes), "image/png")},
-            data={"target_key": "C"},
+            data=_strict_data(),
         )
         assert resp.status_code == 200
         body = resp.json()
@@ -144,7 +205,7 @@ class TestSuccessResponse:
         resp = client.post(
             "/api/transpose",
             files={"image": ("score.png", io.BytesIO(minimal_png_bytes), "image/png")},
-            data={"target_key": "G"},
+            data=_strict_data(target_key="G"),
             headers={"X-Request-ID": "req_custom_abc"},
         )
         assert resp.status_code == 200
@@ -152,7 +213,7 @@ class TestSuccessResponse:
 
 
 class TestProviderRouting:
-    def test_meta_returns_provider_lists(self, client):
+    def test_meta_inconsistent_default_provider_returns_500(self, client):
         with (
             patch("tuneai.api.routes._list_providers_with_llm", return_value=["glm", "qwen"]),
             patch("tuneai.api.routes._list_providers_with_vision_llm", return_value=["glm"]),
@@ -160,16 +221,26 @@ class TestProviderRouting:
             patch("tuneai.api.routes.get_default_provider", return_value="glm"),
         ):
             resp = client.get("/api/meta")
+        assert resp.status_code == 500
+
+    def test_meta_returns_provider_lists_when_consistent(self, client):
+        with (
+            patch("tuneai.api.routes._list_providers_with_llm", return_value=["glm", "qwen"]),
+            patch("tuneai.api.routes._list_providers_with_vision_llm", return_value=["glm", "qwen"]),
+            patch("tuneai.api.routes._list_providers_with_ocr", return_value=["glm", "qwen"]),
+            patch("tuneai.api.routes.get_default_provider", return_value="glm"),
+        ):
+            resp = client.get("/api/meta")
         assert resp.status_code == 200
         body = resp.json()
         assert body["providers"] == ["glm", "qwen"]
         assert body["llm_providers"] == ["glm", "qwen"]
-        assert body["vision_llm_providers"] == ["glm"]
-        assert body["ocr_providers"] == ["qwen"]
+        assert body["vision_llm_providers"] == ["glm", "qwen"]
+        assert body["ocr_providers"] == ["glm", "qwen"]
         assert body["default_provider"] == "glm"
         assert body["default_llm_provider"] == "glm"
         assert body["default_vision_llm_provider"] == "glm"
-        assert body["default_ocr_provider"] == "qwen"
+        assert body["default_ocr_provider"] == "glm"
 
     def test_invalid_unified_provider_returns_400(self, client, minimal_png_bytes):
         with (
@@ -180,7 +251,7 @@ class TestProviderRouting:
             resp = client.post(
                 "/api/transpose",
                 files={"image": ("score.png", io.BytesIO(minimal_png_bytes), "image/png")},
-                data={"target_key": "C", "provider": "glm"},
+                data=_strict_data(provider="glm", llm_provider="glm", vision_llm_provider="glm", ocr_provider="glm"),
             )
         assert resp.status_code == 400
         assert resp.json()["error_code"] == "INVALID_OCR_PROVIDER"
@@ -202,7 +273,7 @@ class TestProviderRouting:
             resp = client.post(
                 "/api/transpose",
                 files={"image": ("score.png", io.BytesIO(minimal_png_bytes), "image/png")},
-                data={"target_key": "C", "provider": "glm"},
+                data=_strict_data(provider="glm", llm_provider="glm", vision_llm_provider="glm", ocr_provider="glm"),
             )
 
         assert resp.status_code == 200

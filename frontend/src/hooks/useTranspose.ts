@@ -1,10 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { ApiMetaResponse, ScoreJson, Warning, TargetKey, TransposeResponse } from '../types/api'
 
-const DEFAULT_MAX_SIZE_MB = 20
-const DEFAULT_ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp']
-const DEFAULT_PROVIDERS = ['glm', 'qwen']
-
 type UploadRules = {
   allowedImageTypes: string[]
   maxSizeMB: number
@@ -41,7 +37,10 @@ async function transpose(params: {
   const formData = new FormData()
   formData.append('image', params.image)
   formData.append('target_key', params.targetKey)
-  if (params.provider) formData.append('provider', params.provider)
+  formData.append('provider', params.provider)
+  formData.append('llm_provider', params.provider)
+  formData.append('vision_llm_provider', params.provider)
+  formData.append('ocr_provider', params.provider)
   const response = await fetch('/api/transpose', {
     method: 'POST',
     body: formData,
@@ -93,7 +92,7 @@ function isTransposeResponse(value: unknown): value is TransposeResponse {
       typeof r.processing_time_ms === 'number' &&
       typeof r.request_id === 'string' &&
       Array.isArray(r.warnings) &&
-      r.score_json !== undefined
+      isScoreJson(r.score_json)
     )
   }
   if (r.success === false) {
@@ -109,20 +108,62 @@ function isTransposeResponse(value: unknown): value is TransposeResponse {
 function isApiMetaResponse(value: unknown): value is ApiMetaResponse {
   if (!value || typeof value !== 'object') return false
   const r = value as Record<string, unknown>
-  return Array.isArray(r.allowed_image_types) && typeof r.max_image_size_mb === 'number'
+  return (
+    Array.isArray(r.allowed_image_types) &&
+    typeof r.max_image_size_mb === 'number' &&
+    Array.isArray(r.providers) &&
+    typeof r.default_provider === 'string' &&
+    Array.isArray(r.llm_providers) &&
+    Array.isArray(r.vision_llm_providers) &&
+    Array.isArray(r.ocr_providers) &&
+    typeof r.default_llm_provider === 'string' &&
+    typeof r.default_vision_llm_provider === 'string' &&
+    typeof r.default_ocr_provider === 'string'
+  )
 }
 
-function normalizeProviders(providers: unknown, defaults: string[]): string[] {
-  if (!Array.isArray(providers)) return defaults
+function normalizeProviders(providers: unknown): string[] {
+  if (!Array.isArray(providers)) {
+    throw new Error('api/meta providers 必须是数组')
+  }
   const safe = providers
     .filter((item): item is string => typeof item === 'string')
     .map((item) => item.trim().toLowerCase())
     .filter(Boolean)
-  return safe.length > 0 ? Array.from(new Set(safe)) : defaults
+  if (safe.length === 0) {
+    throw new Error('api/meta providers 不能为空')
+  }
+  return Array.from(new Set(safe))
 }
 
 function normalizeProviderValue(value: unknown): string {
-  return typeof value === 'string' ? value.trim().toLowerCase() : ''
+  if (typeof value !== 'string') {
+    throw new Error('provider 值必须是字符串')
+  }
+  const normalized = value.trim().toLowerCase()
+  if (!normalized) {
+    throw new Error('provider 值不能为空')
+  }
+  return normalized
+}
+
+function isScoreJson(value: unknown): value is ScoreJson {
+  if (!value || typeof value !== 'object') return false
+  const r = value as Record<string, unknown>
+  const sourceKey = r.source_key
+  const targetKey = r.target_key
+  return (
+    typeof r.score_id === 'string' &&
+    Array.isArray(r.events) &&
+    !!sourceKey &&
+    typeof sourceKey === 'object' &&
+    typeof (sourceKey as Record<string, unknown>).label === 'string' &&
+    typeof (sourceKey as Record<string, unknown>).tonic === 'string' &&
+    !!targetKey &&
+    typeof targetKey === 'object' &&
+    typeof (targetKey as Record<string, unknown>).label === 'string' &&
+    typeof (targetKey as Record<string, unknown>).tonic === 'string'
+  )
 }
 
 function formatAllowedTypes(allowedImageTypes: string[]): string {
@@ -131,7 +172,9 @@ function formatAllowedTypes(allowedImageTypes: string[]): string {
   if (set.has('image/png')) labels.push('PNG')
   if (set.has('image/jpeg') || set.has('image/jpg')) labels.push('JPG')
   if (set.has('image/webp')) labels.push('WEBP')
-  if (labels.length === 0) return '支持格式'
+  if (labels.length === 0) {
+    throw new Error('allowed_image_types 不包含受支持的显示格式')
+  }
   if (labels.length === 1) return labels[0]
   if (labels.length === 2) return `${labels[0]} 或 ${labels[1]}`
   return `${labels.slice(0, -1).join('、')} 或 ${labels[labels.length - 1]}`
@@ -171,8 +214,8 @@ export function useTranspose() {
   const [serviceError, setServiceError] = useState<string | null>(null)
   const [pageState, setPageState] = useState<PageState>({ status: 'idle' })
   const [uploadRules, setUploadRules] = useState<UploadRules>({
-    allowedImageTypes: DEFAULT_ALLOWED_IMAGE_TYPES,
-    maxSizeMB: DEFAULT_MAX_SIZE_MB,
+    allowedImageTypes: [],
+    maxSizeMB: 0,
   })
   const [serviceStatus, setServiceStatus] = useState<ServiceStatus>({
     systemOnline: false,
@@ -180,9 +223,9 @@ export function useTranspose() {
     isCheckingStatus: true,
   })
   const [providerOptions, setProviderOptions] = useState<ProviderOptions>({
-    providers: DEFAULT_PROVIDERS,
+    providers: [],
   })
-  const [selectedProvider, setSelectedProvider] = useState<string>(DEFAULT_PROVIDERS[0])
+  const [selectedProvider, setSelectedProvider] = useState<string>('')
 
   useEffect(() => {
     let cancelled = false
@@ -198,13 +241,24 @@ export function useTranspose() {
         })
         setServiceError(errorMessage)
         if (meta) {
+          if (meta.allowed_image_types.length === 0) {
+            throw new Error('api/meta 返回的 allowed_image_types 不能为空')
+          }
+          if (meta.max_image_size_mb <= 0) {
+            throw new Error('api/meta 返回的 max_image_size_mb 必须大于 0')
+          }
           setUploadRules({
-            allowedImageTypes:
-              meta.allowed_image_types.length > 0 ? meta.allowed_image_types : DEFAULT_ALLOWED_IMAGE_TYPES,
-            maxSizeMB: meta.max_image_size_mb > 0 ? meta.max_image_size_mb : DEFAULT_MAX_SIZE_MB,
+            allowedImageTypes: meta.allowed_image_types,
+            maxSizeMB: meta.max_image_size_mb,
           })
-          const providers = normalizeProviders(meta.providers, DEFAULT_PROVIDERS)
+          const providers = normalizeProviders(meta.providers)
           const defaultProvider = normalizeProviderValue(meta.default_provider)
+          if (providers.length === 0) {
+            throw new Error('api/meta 返回的 providers 不能为空')
+          }
+          if (!providers.includes(defaultProvider)) {
+            throw new Error(`default_provider 未包含在 providers 中: ${defaultProvider}`)
+          }
 
           setProviderOptions({
             providers,
@@ -212,8 +266,7 @@ export function useTranspose() {
 
           setSelectedProvider((prev) => {
             if (prev && providers.includes(prev)) return prev
-            if (defaultProvider && providers.includes(defaultProvider)) return defaultProvider
-            return providers[0]
+            return defaultProvider
           })
         }
       } catch (err) {
@@ -275,7 +328,10 @@ export function useTranspose() {
   }, [uploadRules])
 
   const handleSubmit = useCallback(async () => {
-    if (!selectedFile || !selectedPreviewUrl) return
+    if (!selectedFile || !selectedPreviewUrl || !selectedProvider) {
+      setPageState({ status: 'error', error: '提交参数不完整：缺少文件、预览地址或 provider' })
+      return
+    }
     setPageState({ status: 'loading', previewUrl: selectedPreviewUrl })
     try {
       const res = await transpose({
@@ -289,7 +345,7 @@ export function useTranspose() {
           originalPreview: selectedPreviewUrl,
           outputImage: res.output_image,
           scoreJson: res.score_json,
-          warnings: res.warnings ?? [],
+          warnings: res.warnings,
           requestId: res.request_id,
           processingTimeMs: res.processing_time_ms,
         })
@@ -306,7 +362,7 @@ export function useTranspose() {
       logger.error('transpose fetch failed', { error: message })
       setPageState({ status: 'error', error: message })
     }
-  }, [selectedFile, selectedPreviewUrl, targetKey, selectedProvider])
+  }, [selectedFile, selectedPreviewUrl, selectedProvider, targetKey])
 
   const handleRetry = useCallback(() => {
     setPageState({ status: 'idle' })
@@ -331,7 +387,7 @@ export function useTranspose() {
     selectedFile,
     selectedPreviewUrl,
     targetKey,
-    controlError: controlError ?? serviceError,
+    controlError: controlError !== null ? controlError : serviceError,
     pageState,
     serviceStatus,
     providerOptions,

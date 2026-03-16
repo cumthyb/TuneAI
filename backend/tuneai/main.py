@@ -16,7 +16,13 @@ from tuneai.logging_config import setup_logging, get_logger
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     log_cfg = get_logging_config()
-    setup_logging(level=log_cfg.get("level", "INFO"), fmt=log_cfg.get("format", "json"))
+    level = log_cfg.get("level")
+    fmt = log_cfg.get("format")
+    if not isinstance(level, str) or not level.strip():
+        raise ValueError("logging.level must be a non-empty string")
+    if not isinstance(fmt, str) or not fmt.strip():
+        raise ValueError("logging.format must be a non-empty string")
+    setup_logging(level=level, fmt=fmt)
     get_logger("main").info("TuneAI backend starting")
     yield
     get_logger("main").info("TuneAI backend shutting down")

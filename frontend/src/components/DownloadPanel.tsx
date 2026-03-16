@@ -2,16 +2,11 @@ import { useCallback, useState } from 'react'
 import type { ScoreJson } from '../types/api'
 
 export interface DownloadPanelProps {
-  /** 结果图 base64（可带或不带 data: 前缀） */
+  /** 结果图 base64（不带 data: 前缀） */
   outputImage: string
   scoreJson: ScoreJson
   requestId: string
   processingTimeMs?: number
-}
-
-function ensureDataUrl(base64: string): string {
-  if (base64.startsWith('data:')) return base64
-  return `data:image/png;base64,${base64}`
 }
 
 export default function DownloadPanel({
@@ -22,9 +17,8 @@ export default function DownloadPanel({
 }: DownloadPanelProps) {
   const [copied, setCopied] = useState(false)
   const downloadImage = useCallback(() => {
-    const dataUrl = ensureDataUrl(outputImage)
     const a = document.createElement('a')
-    a.href = dataUrl
+    a.href = `data:image/png;base64,${outputImage}`
     a.download = `tuneai-result-${requestId.slice(0, 8)}.png`
     a.click()
   }, [outputImage, requestId])

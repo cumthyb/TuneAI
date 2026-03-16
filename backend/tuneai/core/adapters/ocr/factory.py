@@ -11,16 +11,15 @@ from tuneai.core.adapters.ocr.types import OcrChar
 OCRRunner = Callable[[np.ndarray, dict[str, Any]], list[OcrChar]]
 
 
-def get_ocr_runner(provider: str, runners: dict[str, str]) -> OCRRunner | None:
-    entrypoint = (runners or {}).get(provider)
-    if not entrypoint:
-        return None
+def get_ocr_runner(provider: str, runners: dict[str, str]) -> OCRRunner:
+    entrypoint = runners.get(provider)
+    if not isinstance(entrypoint, str) or not entrypoint.strip():
+        raise ValueError(f"ocr runner is not configured for provider: {provider}")
     module_name, sep, func_name = entrypoint.partition(":")
     if not sep or not module_name or not func_name:
-        return None
-    try:
-        module = importlib.import_module(module_name)
-        runner = getattr(module, func_name)
-    except Exception:
-        return None
-    return runner if callable(runner) else None
+        raise ValueError(f"invalid ocr runner entrypoint: {entrypoint!r}")
+    module = importlib.import_module(module_name)
+    runner = getattr(module, func_name)
+    if not callable(runner):
+        raise ValueError(f"ocr runner is not callable: {entrypoint!r}")
+    return runner

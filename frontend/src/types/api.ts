@@ -66,9 +66,9 @@ export interface Warning {
 
 /** 乐谱 JSON 简化结构（与文档 §7 对应） */
 export interface ScoreJson {
-  score_id?: string
-  source_key?: { label: string; tonic: string; mode?: string }
-  target_key?: { label: string; tonic: string; mode?: string }
-  measures?: unknown[]
+  score_id: string
+  source_key: { label: string; tonic: string; mode?: string }
+  target_key: { label: string; tonic: string; mode?: string }
+  events: unknown[]
   [key: string]: unknown
 }

@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 import tuneai.config as config_module
 
 
@@ -68,14 +70,14 @@ class TestConfigEnvOverrides:
         cfg = config_module.load_config()
         assert cfg["provider_policy"]["default_provider"] == "qwen"
 
-    def test_invalid_port_env_is_ignored(self, monkeypatch):
+    def test_invalid_port_env_raises(self, monkeypatch):
         base_cfg = {"server": {"port": 8000}, "provider_policy": {"default_provider": "glm"}, "providers": {"glm": {}}}
         monkeypatch.setattr(config_module, "_find_config", lambda: Path("/tmp/config.json"))
         monkeypatch.setattr(config_module, "_load_json", lambda _p: dict(base_cfg))
         monkeypatch.setenv("TUNEAI_PORT", "invalid")
 
-        cfg = config_module.load_config()
-        assert cfg["server"]["port"] == 8000
+        with pytest.raises(ValueError, match="TUNEAI_PORT must be an integer"):
+            config_module.load_config()
 
     def test_missing_default_provider_registration_raises(self, monkeypatch):
         base_cfg = {
@@ -86,11 +88,8 @@ class TestConfigEnvOverrides:
         monkeypatch.setattr(config_module, "_find_config", lambda: Path("/tmp/config.json"))
         monkeypatch.setattr(config_module, "_load_json", lambda _p: dict(base_cfg))
 
-        try:
+        with pytest.raises(ValueError, match="default_provider is not registered"):
             config_module.load_config()
-            assert False, "expected ValueError"
-        except ValueError as exc:
-            assert "default_provider is not registered" in str(exc)
 
     def test_invalid_providers_type_raises(self, monkeypatch):
         base_cfg = {
@@ -101,8 +100,5 @@ class TestConfigEnvOverrides:
         monkeypatch.setattr(config_module, "_find_config", lambda: Path("/tmp/config.json"))
         monkeypatch.setattr(config_module, "_load_json", lambda _p: dict(base_cfg))
 
-        try:
+        with pytest.raises(ValueError, match="providers must be an object"):
             config_module.load_config()
-            assert False, "expected ValueError"
-        except ValueError as exc:
-            assert "providers must be an object" in str(exc)

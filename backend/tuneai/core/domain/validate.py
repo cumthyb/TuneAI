@@ -25,21 +25,15 @@ _VALID_TONICS = {
 
 def validate_score(
     score: ScoreIR,
+    request_id: str,
     original_image: np.ndarray | None = None,
-    request_id: str = "",
 ) -> list[Warning]:
     log = get_logger("validate")
     warnings: list[Warning] = []
     warnings.extend(_rule_checks(score))
-    try:
-        warnings.extend(_llm_validate(score, request_id))
-    except Exception as e:
-        log.warning(f"[validate] LLM 校验跳过: {type(e).__name__}: {e}")
+    warnings.extend(_llm_validate(score, request_id))
     if original_image is not None:
-        try:
-            warnings.extend(_vl_validate(score, original_image, request_id))
-        except Exception as e:
-            log.warning(f"[validate] VL 校验跳过: {type(e).__name__}: {e}")
+        warnings.extend(_vl_validate(score, original_image, request_id))
     if warnings:
         log.warning(f"validate_score: {len(warnings)} warning(s)")
     return warnings
@@ -48,7 +42,7 @@ def validate_score(
 def _rule_checks(score: ScoreIR) -> list[Warning]:
     warnings: list[Warning] = []
     if not score.source_key.tonic:
-        warnings.append(Warning(type="KEY_NOT_FOUND", message="未能识别调号，已使用默认值 1=C"))
+        warnings.append(Warning(type="KEY_NOT_FOUND", message="未能识别到调号"))
     elif score.source_key.tonic not in _VALID_TONICS:
         warnings.append(
             Warning(type="INVALID_KEY", message=f"识别到的调号不合法: {score.source_key.tonic!r}")
@@ -71,14 +65,15 @@ class _LLMValidationResult(BaseModel):
     is_valid: bool = Field(description="转调结果是否音乐上合理")
     confidence: float = Field(description="置信度 0-1", ge=0.0, le=1.0)
     issues: list[str] = Field(default_factory=list, description="发现的问题列表（无问题时为空）")
-    notes: str = Field(default="", description="补充说明")
+    notes: str = Field(description="补充说明")
 
 
 def _llm_validate(score: ScoreIR, request_id: str) -> list[Warning]:
     log = get_logger("validate")
-    if not get_text_llm_config().get("api_key"):
-        log.debug("[validate] llm api_key 未配置，跳过文本校验")
-        return []
+    cfg = get_text_llm_config()
+    api_key = cfg.get("api_key")
+    if not isinstance(api_key, str) or not api_key.strip():
+        raise ValueError("llm.api_key must be configured for validate_score")
     sample = [
         {"id": e.id, "degree": e.degree, "accidental": e.accidental, "octave_shift": e.octave_shift}
         for e in score.events if isinstance(e, NoteEvent)
@@ -93,34 +88,24 @@ def _llm_validate(score: ScoreIR, request_id: str) -> list[Warning]:
         "2. 音符序列中是否存在可疑模式（如大量 #/b 临时记号，可能暗示调号识别有误）\n"
         "3. 整体是否符合简谱转调的音乐规律"
     )
-    try:
-        cfg = get_text_llm_config()
-        llm = build_chat_openai(
-            cfg,
-            default_model="text-model",
-            default_temperature=0.0,
-            default_max_tokens=512,
-            default_timeout_seconds=30,
-        )
-        chain = llm.with_structured_output(_LLMValidationResult, method="function_calling")
-        result: _LLMValidationResult = chain.invoke(prompt)
-        log.debug(
-            f"[validate] LLM: is_valid={result.is_valid}, conf={result.confidence:.2f}, issues={result.issues}"
-        )
-        if not result.is_valid or result.issues:
-            return [
-                Warning(
-                    type="llm_validation",
-                    message=(
-                        f"LLM 校验发现问题 (conf={result.confidence:.2f}): "
-                        + "; ".join(result.issues)
-                        if result.issues
-                        else result.notes
-                    ),
-                )
-            ]
-    except Exception as e:
-        log.warning(f"[validate] LLM structured output 失败: {e}")
+    llm = build_chat_openai(cfg)
+    chain = llm.with_structured_output(_LLMValidationResult, method="function_calling")
+    result: _LLMValidationResult = chain.invoke(prompt)
+    log.debug(
+        f"[validate] LLM: is_valid={result.is_valid}, conf={result.confidence:.2f}, issues={result.issues}"
+    )
+    if not result.is_valid or result.issues:
+        return [
+            Warning(
+                type="llm_validation",
+                message=(
+                    f"LLM 校验发现问题 (conf={result.confidence:.2f}): "
+                    + "; ".join(result.issues)
+                    if result.issues
+                    else result.notes
+                ),
+            )
+        ]
     return []
 
 
@@ -128,7 +113,7 @@ class _VLValidationResult(BaseModel):
     key_correct: bool = Field(description="图中调号与识别结果是否一致")
     detected_key: str = Field(description="VL 从图中看到的调号，如 G、Bb")
     confidence: float = Field(description="置信度 0-1", ge=0.0, le=1.0)
-    notes: str = Field(default="", description="补充说明")
+    notes: str = Field(description="补充说明")
 
 
 _VL_PROMPT = (
@@ -143,42 +128,33 @@ _VL_PROMPT = (
 def _vl_validate(score: ScoreIR, original_image: np.ndarray, request_id: str) -> list[Warning]:
     log = get_logger("validate")
     cfg = get_vision_llm_config()
-    if not cfg.get("api_key"):
-        log.debug("[validate] vision_llm api_key 未配置，跳过 VL 校验")
-        return []
+    api_key = cfg.get("api_key")
+    if not isinstance(api_key, str) or not api_key.strip():
+        raise ValueError("vision_llm.api_key must be configured for validate_score")
     _, buf = cv2.imencode(".png", original_image)
     b64 = base64.b64encode(buf.tobytes()).decode()
     prompt = _VL_PROMPT.format(source_key=score.source_key.tonic, target_key=score.target_key.tonic)
-    try:
-        from langchain_core.messages import HumanMessage
-        llm = build_chat_openai(
-            cfg,
-            default_model="vision-model",
-            default_temperature=0.0,
-            default_max_tokens=128,
-            default_timeout_seconds=30,
-        )
-        chain = llm.with_structured_output(_VLValidationResult, method="function_calling")
-        message = HumanMessage(
-            content=[
-                {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}"}},
-                {"type": "text", "text": prompt},
-            ]
-        )
-        result: _VLValidationResult = chain.invoke([message])
-        log.debug(
-            f"[validate] VL: key_correct={result.key_correct}, detected={result.detected_key!r}, conf={result.confidence:.2f}"
-        )
-        if not result.key_correct:
-            return [
-                Warning(
-                    type="vl_key_mismatch",
-                    message=(
-                        f"VL 视觉校验：图中调号可能为 1={result.detected_key}，"
-                        f"与识别结果 1={score.source_key.tonic} 不符 (conf={result.confidence:.2f})"
-                    ),
-                )
-            ]
-    except Exception as e:
-        log.warning(f"[validate] VL structured output 失败: {e}")
+    from langchain_core.messages import HumanMessage
+    llm = build_chat_openai(cfg)
+    chain = llm.with_structured_output(_VLValidationResult, method="function_calling")
+    message = HumanMessage(
+        content=[
+            {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}"}},
+            {"type": "text", "text": prompt},
+        ]
+    )
+    result: _VLValidationResult = chain.invoke([message])
+    log.debug(
+        f"[validate] VL: key_correct={result.key_correct}, detected={result.detected_key!r}, conf={result.confidence:.2f}"
+    )
+    if not result.key_correct:
+        return [
+            Warning(
+                type="vl_key_mismatch",
+                message=(
+                    f"VL 视觉校验：图中调号可能为 1={result.detected_key}，"
+                    f"与识别结果 1={score.source_key.tonic} 不符 (conf={result.confidence:.2f})"
+                ),
+            )
+        ]
     return []

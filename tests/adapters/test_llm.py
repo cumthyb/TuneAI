@@ -1,4 +1,4 @@
-"""LLM module tests aligned with current implementation."""
+"""LLM adapter tests for strict configuration contract."""
 
 from unittest.mock import MagicMock, patch
 
@@ -8,7 +8,6 @@ from tuneai.core.adapters.llm import (
     KeyCorrectionResult,
     MeasureCorrectionResult,
     PitchAssessmentResult,
-    _fallback_key_parse,
     assess_pitch_range,
     correct_key_signature,
     correct_low_confidence_events,
@@ -23,26 +22,23 @@ def _make_structured_mock(return_value):
 
 
 class TestCorrectKeySignature:
-    def test_empty_raw_text_skips_llm(self):
-        with patch("tuneai.core.adapters.llm._structured") as mock_s:
-            result = correct_key_signature("", "ctx", "req")
-        mock_s.assert_not_called()
-        assert result.tonic == "C"
-        assert result.label == "1=C"
+    def test_empty_raw_text_raises(self):
+        with pytest.raises(ValueError, match="raw_text must be non-empty"):
+            correct_key_signature("", "ctx", "req")
 
     def test_returns_llm_result(self):
-        expected = KeyCorrectionResult(tonic="G", label="1=G", confidence=0.95)
+        expected = KeyCorrectionResult(tonic="G", label="1=G", confidence=0.95, notes="ok")
         with patch("tuneai.core.adapters.llm._structured", return_value=_make_structured_mock(expected)):
             result = correct_key_signature("1=G", "ctx", "req")
         assert result.tonic == "G"
         assert result.confidence == pytest.approx(0.95)
 
-    def test_llm_exception_falls_back_to_regex(self):
+    def test_llm_exception_bubbles_up(self):
         chain = MagicMock()
         chain.invoke.side_effect = RuntimeError("boom")
         with patch("tuneai.core.adapters.llm._structured", return_value=chain):
-            result = correct_key_signature("1=D", "ctx", "req")
-        assert result.tonic == "D"
+            with pytest.raises(RuntimeError, match="boom"):
+                correct_key_signature("1=D", "ctx", "req")
 
 
 class TestCorrectLowConfidenceEvents:
@@ -53,14 +49,13 @@ class TestCorrectLowConfidenceEvents:
             result = correct_low_confidence_events(tokens, "C", "req")
         assert result.confidence == pytest.approx(0.92)
 
-    def test_exception_returns_original(self):
+    def test_exception_bubbles_up(self):
         tokens = [{"id": "n1", "type": "note", "degree": 3, "accidental": "natural", "confidence": 0.4}]
         chain = MagicMock()
         chain.invoke.side_effect = TimeoutError("timeout")
         with patch("tuneai.core.adapters.llm._structured", return_value=chain):
-            result = correct_low_confidence_events(tokens, "C", "req")
-        assert result.events == tokens
-        assert result.confidence == pytest.approx(0.5)
+            with pytest.raises(TimeoutError, match="timeout"):
+                correct_low_confidence_events(tokens, "C", "req")
 
 
 class TestStructured:
@@ -75,91 +70,57 @@ class TestStructured:
 
 class TestPitchAssessmentStub:
     def test_assess_pitch_range_returns_stub(self):
-        result = assess_pitch_range(events=[], source_key="C", target_key="G")
+        result = assess_pitch_range(events=[], source_key="C", target_key="G", request_id="req")
         assert isinstance(result, PitchAssessmentResult)
         assert result.too_high is False
         assert result.octave_adjust == 0
 
 
-class TestFallbackKeyParse:
-    @pytest.mark.parametrize(
-        "text,expected_tonic",
-        [("1=C", "C"), ("1=G#", "G#"), ("1=Bb", "Bb"), ("1＝A", "A"), ("1一G", "G")],
-    )
-    def test_recognizes_formats(self, text, expected_tonic):
-        result = _fallback_key_parse(text)
-        assert result.tonic == expected_tonic
-        assert result.label == f"1={expected_tonic}"
-
-    def test_unrecognizable_returns_default_c(self):
-        result = _fallback_key_parse("乱码")
-        assert result.tonic == "C"
-
-
 class TestPydanticModels:
     def test_confidence_upper_bound(self):
         with pytest.raises(Exception):
-            KeyCorrectionResult(tonic="C", label="1=C", confidence=1.5)
+            KeyCorrectionResult(tonic="C", label="1=C", confidence=1.5, notes="n")
 
     def test_confidence_lower_bound(self):
         with pytest.raises(Exception):
-            KeyCorrectionResult(tonic="C", label="1=C", confidence=-0.1)
+            KeyCorrectionResult(tonic="C", label="1=C", confidence=-0.1, notes="n")
 
 
 class TestLlmClientConfigDriven:
-    def test_qwen_provider_uses_default_base_url(self):
-        mock_cls = MagicMock()
-        with patch("tuneai.core.adapters.llm_client._resolve_client_class", return_value=mock_cls):
-            build_chat_openai(
-                {"provider": "qwen", "api_key": "k"},
-                default_model="m",
-                default_temperature=0.1,
-                default_max_tokens=128,
-                default_timeout_seconds=30,
-            )
-        assert (
-            mock_cls.call_args.kwargs["base_url"]
-            == "https://dashscope.aliyuncs.com/compatible-mode/v1"
-        )
+    def _minimal_cfg(self):
+        return {
+            "client_class": "pkg.mod.Client",
+            "client_kwargs": {},
+            "provider": "qwen",
+            "model": "m",
+            "base_url": "https://example/v1",
+            "api_key": "k",
+            "temperature": 0.1,
+            "max_tokens": 128,
+            "timeout_seconds": 30,
+            "model_kwargs": {},
+            "extra_body": {},
+        }
 
-    def test_glm_provider_uses_default_base_url(self):
-        mock_cls = MagicMock()
-        with patch("tuneai.core.adapters.llm_client._resolve_client_class", return_value=mock_cls):
-            build_chat_openai(
-                {"provider": "glm", "api_key": "k"},
-                default_model="m",
-                default_temperature=0.1,
-                default_max_tokens=128,
-                default_timeout_seconds=30,
-            )
-        assert mock_cls.call_args.kwargs["base_url"] == "https://open.bigmodel.cn/api/paas/v4"
+    def test_build_chat_openai_requires_explicit_fields(self):
+        with pytest.raises(ValueError):
+            build_chat_openai({"api_key": "k"})
 
-    def test_explicit_base_url_overrides_provider_preset(self):
+    def test_build_chat_openai_uses_explicit_base_url(self):
         mock_cls = MagicMock()
         with patch("tuneai.core.adapters.llm_client._resolve_client_class", return_value=mock_cls):
-            build_chat_openai(
-                {"provider": "qwen", "base_url": "https://custom/v1", "api_key": "k"},
-                default_model="m",
-                default_temperature=0.1,
-                default_max_tokens=128,
-                default_timeout_seconds=30,
-            )
+            cfg = self._minimal_cfg()
+            cfg["base_url"] = "https://custom/v1"
+            build_chat_openai(cfg)
         assert mock_cls.call_args.kwargs["base_url"] == "https://custom/v1"
 
     def test_passes_model_kwargs_and_extra_body(self):
         mock_cls = MagicMock()
         with patch("tuneai.core.adapters.llm_client._resolve_client_class", return_value=mock_cls):
-            build_chat_openai(
-                {
-                    "api_key": "k",
-                    "model_kwargs": {"top_p": 0.7},
-                    "extra_body": {"enable_thinking": True},
-                },
-                default_model="m",
-                default_temperature=0.1,
-                default_max_tokens=128,
-                default_timeout_seconds=30,
-            )
+            cfg = self._minimal_cfg()
+            cfg["model_kwargs"] = {"top_p": 0.7}
+            cfg["extra_body"] = {"enable_thinking": True}
+            build_chat_openai(cfg)
         kwargs = mock_cls.call_args.kwargs
         assert kwargs["model_kwargs"] == {"top_p": 0.7}
         assert kwargs["extra_body"] == {"enable_thinking": True}
@@ -167,11 +128,7 @@ class TestLlmClientConfigDriven:
     def test_disable_parallel_tool_calls_maps_to_disabled_params(self):
         mock_cls = MagicMock()
         with patch("tuneai.core.adapters.llm_client._resolve_client_class", return_value=mock_cls):
-            build_chat_openai(
-                {"api_key": "k", "disable_parallel_tool_calls": True},
-                default_model="m",
-                default_temperature=0.1,
-                default_max_tokens=128,
-                default_timeout_seconds=30,
-            )
+            cfg = self._minimal_cfg()
+            cfg["disable_parallel_tool_calls"] = True
+            build_chat_openai(cfg)
         assert mock_cls.call_args.kwargs["disabled_params"] == {"parallel_tool_calls": None}

@@ -21,20 +21,16 @@ _llm_instances: dict[tuple[str, str, str], object] = {}
 
 def _create_llm():
     cfg = get_vision_llm_config()
-    return build_chat_openai(
-        cfg,
-        default_model="vision-model",
-        default_temperature=0.0,
-        default_max_tokens=64,
-        default_timeout_seconds=30,
-    )
+    return build_chat_openai(cfg)
 
 
 def _get_llm():
     cfg = get_vision_llm_config()
-    provider = str(cfg.get("provider") or "").strip().lower()
-    model = str(cfg.get("model") or "vision-model")
-    base_url = str(cfg.get("base_url") or "")
+    provider = str(cfg.get("provider")).strip().lower()
+    model = str(cfg.get("model")).strip()
+    base_url = str(cfg.get("base_url")).strip()
+    if not provider or not model or not base_url:
+        raise ValueError("vision_llm provider/model/base_url must be configured")
     key = (provider, model, base_url)
     llm = _llm_instances.get(key)
     if llm is None:
@@ -44,28 +40,26 @@ def _get_llm():
 
 
 def recognize_key_signature(image: np.ndarray) -> str:
-    log = get_logger("vision_llm")
     cfg = get_vision_llm_config()
-    if not cfg.get("api_key"):
-        log.warning("vision_llm: api_key 未配置，跳过调号识别，使用默认 C 调")
-        return "C"
+    api_key = cfg.get("api_key")
+    if not isinstance(api_key, str) or not api_key.strip():
+        raise ValueError("vision_llm.api_key must be configured")
     _, buf = cv2.imencode(".png", image)
     b64 = base64.b64encode(buf.tobytes()).decode()
-    try:
-        from langchain_core.messages import HumanMessage
+    from langchain_core.messages import HumanMessage
 
-        llm = _get_llm()
-        message = HumanMessage(
-            content=[
-                {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}"}},
-                {"type": "text", "text": _PROMPT},
-            ]
-        )
-        response = llm.invoke([message])
-        return _parse_key((response.content or "").strip())
-    except Exception as e:
-        log.warning(f"vision_llm 调用失败 ({type(e).__name__}: {e})，使用默认 C 调")
-        return "C"
+    llm = _get_llm()
+    message = HumanMessage(
+        content=[
+            {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}"}},
+            {"type": "text", "text": _PROMPT},
+        ]
+    )
+    response = llm.invoke([message])
+    content = response.content
+    if not isinstance(content, str):
+        raise ValueError("vision_llm response content must be string")
+    return _parse_key(content.strip())
 
 
 def _parse_key(text: str) -> str:
@@ -75,7 +69,7 @@ def _parse_key(text: str) -> str:
     match = _TONIC_RE.search(text)
     if match:
         return _normalize(match.group(1))
-    return "C"
+    raise ValueError(f"vision_llm cannot parse key from response: {text!r}")
 
 
 def _normalize(tonic: str) -> str:

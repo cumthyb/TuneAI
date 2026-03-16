@@ -18,6 +18,8 @@ import pytest
 
 # 项目根目录
 ROOT = Path(__file__).resolve().parent.parent
+TEST_CONFIG_PATH = ROOT / "config.json"
+EXAMPLE_CONFIG_PATH = ROOT / "config.example.json"
 
 # 样本图片目录
 SAMPLES_DIR = ROOT / "data" / "samples"
@@ -78,7 +80,20 @@ def minimal_png_bytes() -> bytes:
 
 
 @pytest.fixture(autouse=True, scope="session")
-def setup_logging_once():
+def ensure_test_config():
+    created = False
+    if not TEST_CONFIG_PATH.exists():
+        if not EXAMPLE_CONFIG_PATH.exists():
+            pytest.fail(f"缺少测试配置模板: {EXAMPLE_CONFIG_PATH}")
+        TEST_CONFIG_PATH.write_bytes(EXAMPLE_CONFIG_PATH.read_bytes())
+        created = True
+    yield
+    if created and TEST_CONFIG_PATH.exists():
+        TEST_CONFIG_PATH.unlink()
+
+
+@pytest.fixture(autouse=True, scope="session")
+def setup_logging_once(ensure_test_config):
     """测试期间启用 human-readable 日志（stderr），跳过文件日志。"""
     from tuneai.logging_config import setup_logging
     setup_logging(level="DEBUG", fmt="human")

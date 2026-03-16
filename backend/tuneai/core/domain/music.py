@@ -44,7 +44,9 @@ def compute_transpose_delta(source_key: str, target_key: str) -> int:
 
 
 def decode_note(degree: int, accidental: str, octave_shift: int) -> int:
-    semitone = DEGREE_TO_SEMITONE[degree] + ACCIDENTAL_DELTA.get(accidental, 0)
+    if accidental not in ACCIDENTAL_DELTA:
+        raise ValueError(f"unsupported accidental: {accidental}")
+    semitone = DEGREE_TO_SEMITONE[degree] + ACCIDENTAL_DELTA[accidental]
     return semitone + octave_shift * 12
 
 
@@ -72,7 +74,9 @@ def _transpose_note(
     octave_shift: int,
     prefer_sharps: bool,
 ) -> tuple[int, str, int]:
-    raw_offset = DEGREE_TO_SEMITONE[degree] + ACCIDENTAL_DELTA.get(accidental, 0)
+    if accidental not in ACCIDENTAL_DELTA:
+        raise ValueError(f"unsupported accidental: {accidental}")
+    raw_offset = DEGREE_TO_SEMITONE[degree] + ACCIDENTAL_DELTA[accidental]
     octave_adj = raw_offset // 12
     enc = _SHARP_ENCODING if prefer_sharps else _FLAT_ENCODING
     new_degree, new_acc = enc[raw_offset % 12]

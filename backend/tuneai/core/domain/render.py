@@ -33,7 +33,9 @@ def render_output(
             and ev_orig.octave_shift == ev_trans.octave_shift
         ):
             continue
-        acc = _ACC_SYMBOL.get(ev_trans.accidental, "")
+        if ev_trans.accidental not in _ACC_SYMBOL:
+            raise ValueError(f"unsupported accidental: {ev_trans.accidental}")
+        acc = _ACC_SYMBOL[ev_trans.accidental]
         patches.append((tuple(ev_orig.bbox), f"{acc}{ev_trans.degree}"))  # type: ignore[arg-type]
     if not patches:
         _, buf = cv2.imencode(".png", img_bgr)

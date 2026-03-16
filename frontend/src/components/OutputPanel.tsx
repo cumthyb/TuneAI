@@ -125,13 +125,10 @@ export default function OutputPanel({ pageState, onRetry }: OutputPanelProps) {
             <ScoreView scoreJson={scoreJson} className="flex-1" />
           ) : (
             <FullscreenImage
-              src={
-                pageState.outputImage.startsWith('data:')
-                  ? pageState.outputImage
-                  : `data:image/png;base64,${pageState.outputImage}`
-              }
+              src={`data:image/png;base64,${pageState.outputImage}`}
               alt="移调后的简谱"
               className="flex-1 p-4"
+              imgClassName=""
             />
           )
         )}

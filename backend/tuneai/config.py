@@ -17,22 +17,61 @@ def _load_json(path: Path) -> dict[str, Any]:
 
 
 def _find_config() -> Path:
-    for name in ("config.json", "config.example.json"):
-        p = _CONFIG_DIR / name
-        if p.is_file():
-            return p
-    raise FileNotFoundError(f"未找到 config.json 或 config.example.json，目录: {_CONFIG_DIR}")
+    p = _CONFIG_DIR / "config.json"
+    if p.is_file():
+        return p
+    raise FileNotFoundError(f"未找到 config.json，目录: {_CONFIG_DIR}")
+
+
+def _require_object(parent: dict[str, Any], key: str) -> dict[str, Any]:
+    value = parent.get(key)
+    if not isinstance(value, dict):
+        raise ValueError(f"{key} must be an object")
+    return value
+
+
+def _require_string(parent: dict[str, Any], key: str) -> str:
+    value = parent.get(key)
+    if not isinstance(value, str):
+        raise ValueError(f"{key} must be a string")
+    s = value.strip()
+    if not s:
+        raise ValueError(f"{key} must be a non-empty string")
+    return s
+
+
+def _require_int(parent: dict[str, Any], key: str) -> int:
+    value = parent.get(key)
+    if not isinstance(value, int):
+        raise ValueError(f"{key} must be an integer")
+    return value
+
+
+def _normalize_provider_name(name: str) -> str:
+    normalized = name.strip().lower()
+    if not normalized:
+        raise ValueError("provider name must be non-empty")
+    return normalized
+
+
+def _resolve_provider_env(var_name: str, configured_default: str) -> str:
+    env_value = os.getenv(var_name)
+    if env_value is None:
+        return configured_default
+    normalized = _normalize_provider_name(env_value)
+    if not normalized:
+        raise ValueError(f"{var_name} must be a non-empty provider name")
+    return normalized
 
 
 def _provider_entry(cfg: dict[str, Any], provider: str) -> dict[str, Any]:
-    providers = cfg.get("providers")
-    if not isinstance(providers, dict):
-        raise ValueError("providers must be an object")
-    if provider not in providers:
+    providers = _require_object(cfg, "providers")
+    normalized = _normalize_provider_name(provider)
+    if normalized not in providers:
         raise ValueError(f"provider is not registered: {provider}")
-    entry = providers.get(provider)
+    entry = providers.get(normalized)
     if not isinstance(entry, dict):
-        raise ValueError(f"provider entry must be an object: {provider}")
+        raise ValueError(f"provider entry must be an object: {normalized}")
     return entry
 
 
@@ -44,47 +83,41 @@ def _overlay_provider_section(
     updates: dict[str, Any],
 ) -> None:
     entry = _provider_entry(cfg, provider)
-    section_cfg = entry.setdefault(section, {})
+    section_cfg = entry.get(section)
     if not isinstance(section_cfg, dict):
-        section_cfg = {}
-        entry[section] = section_cfg
+        raise ValueError(f"provider section must be an object: {provider}.{section}")
     section_cfg.update({k: v for k, v in updates.items() if v is not None})
 
 
 def load_config() -> dict[str, Any]:
     cfg = _load_json(_find_config())
+    if not isinstance(cfg, dict):
+        raise ValueError("config root must be an object")
 
     if port := os.getenv("TUNEAI_PORT"):
         try:
-            cfg.setdefault("server", {})["port"] = int(port)
+            _require_object(cfg, "server")["port"] = int(port)
         except ValueError:
-            pass
+            raise ValueError("TUNEAI_PORT must be an integer") from None
     if level := os.getenv("TUNEAI_LOG_LEVEL"):
-        cfg.setdefault("logging", {})["level"] = level
+        _require_object(cfg, "logging")["level"] = level
 
-    policy = cfg.get("provider_policy")
-    if not isinstance(policy, dict):
-        raise ValueError("provider_policy must be an object")
-    default_provider = str(policy.get("default_provider") or "").strip().lower()
+    policy = _require_object(cfg, "provider_policy")
+    default_provider = _normalize_provider_name(_require_string(policy, "default_provider"))
     policy["default_provider"] = default_provider
 
     env_provider = os.getenv("TUNEAI_PROVIDER")
     if env_provider:
-        default_provider = env_provider.strip().lower()
+        default_provider = _normalize_provider_name(env_provider)
         policy["default_provider"] = default_provider
 
-    if not default_provider:
-        raise ValueError("default_provider must be explicitly configured")
-
-    providers = cfg.get("providers")
-    if not isinstance(providers, dict):
-        raise ValueError("providers must be an object")
+    providers = _require_object(cfg, "providers")
     if default_provider not in providers:
         raise ValueError(f"default_provider is not registered: {default_provider}")
 
-    text_provider = (os.getenv("TUNEAI_LLM_PROVIDER") or default_provider).strip().lower()
-    vision_provider = (os.getenv("TUNEAI_VISION_LLM_PROVIDER") or default_provider).strip().lower()
-    ocr_provider = (os.getenv("TUNEAI_OCR_PROVIDER") or default_provider).strip().lower()
+    text_provider = _resolve_provider_env("TUNEAI_LLM_PROVIDER", default_provider)
+    vision_provider = _resolve_provider_env("TUNEAI_VISION_LLM_PROVIDER", default_provider)
+    ocr_provider = _resolve_provider_env("TUNEAI_OCR_PROVIDER", default_provider)
 
     if key := os.getenv("TUNEAI_LLM_API_KEY"):
         _overlay_provider_section(cfg, provider=text_provider, section="llm", updates={"api_key": key})
@@ -127,26 +160,18 @@ def get_config() -> dict[str, Any]:
 
 
 def get_provider_policy() -> dict[str, Any]:
-    policy = get_config().get("provider_policy")
-    if not isinstance(policy, dict):
-        raise ValueError("provider_policy must be an object")
-    return policy
+    return _require_object(get_config(), "provider_policy")
 
 
 def get_default_provider() -> str:
-    provider = str(get_provider_policy().get("default_provider") or "").strip().lower()
-    if not provider:
-        raise ValueError("default_provider must be explicitly configured")
+    provider = _normalize_provider_name(_require_string(get_provider_policy(), "default_provider"))
     if provider not in get_providers_config():
         raise ValueError(f"default_provider is not registered: {provider}")
     return provider
 
 
 def get_providers_config() -> dict[str, Any]:
-    providers = get_config().get("providers")
-    if not isinstance(providers, dict):
-        raise ValueError("providers must be an object")
-    return providers
+    return _require_object(get_config(), "providers")
 
 
 def list_registered_providers() -> list[str]:
@@ -155,67 +180,76 @@ def list_registered_providers() -> list[str]:
 
 
 def get_provider_config(provider: str | None = None) -> dict[str, Any]:
-    selected = (provider or get_default_provider()).strip().lower()
+    selected = _normalize_provider_name(provider if provider is not None else get_default_provider())
     providers = get_providers_config()
-    raw = providers.get(selected, {})
-    return raw if isinstance(raw, dict) else {}
+    raw = providers.get(selected)
+    if not isinstance(raw, dict):
+        raise ValueError(f"provider entry must be an object: {selected}")
+    return raw
 
 
 def get_llm_config(provider: str | None = None) -> dict[str, Any]:
-    return get_provider_config(provider).get("llm", {}) or {}
+    return _require_object(get_provider_config(provider), "llm")
 
 
 def get_vision_llm_config(provider: str | None = None) -> dict[str, Any]:
-    return get_provider_config(provider).get("vision_llm", {}) or {}
+    return _require_object(get_provider_config(provider), "vision_llm")
 
 
 def get_ocr_config(provider: str | None = None) -> dict[str, Any]:
-    return get_provider_config(provider).get("ocr", {}) or {}
+    return _require_object(get_provider_config(provider), "ocr")
 
 
 def get_pipeline_config() -> dict[str, Any]:
-    return get_config().get("pipeline", {})
+    return _require_object(get_config(), "pipeline")
 
 
 def get_logging_config() -> dict[str, Any]:
-    return get_config().get("logging", {})
+    return _require_object(get_config(), "logging")
 
 
 def get_frontend_config() -> dict[str, Any]:
-    return get_config().get("frontend", {})
+    return _require_object(get_config(), "frontend")
+
+
+def get_server_config() -> dict[str, Any]:
+    return _require_object(get_config(), "server")
 
 
 def get_server_host() -> str:
-    return get_config().get("server", {}).get("host", "0.0.0.0")
+    return _require_string(get_server_config(), "host")
 
 
 def get_server_port() -> int:
-    return get_config().get("server", {}).get("port", 8000)
+    port = _require_int(get_server_config(), "port")
+    if port <= 0:
+        raise ValueError("server.port must be greater than 0")
+    return port
 
 
 def get_frontend_mode() -> str:
-    return get_frontend_config().get("mode", "build")
+    return _require_string(get_frontend_config(), "mode")
 
 
 def get_frontend_build_dir() -> Path:
-    d = get_frontend_config().get("build_dir", "frontend/dist")
+    d = _require_string(get_frontend_config(), "build_dir")
     return _CONFIG_DIR / d
 
 
 def get_logs_dir() -> Path:
-    d = get_logging_config().get("log_dir", "data/logs")
+    d = _require_string(get_logging_config(), "log_dir")
     p = _CONFIG_DIR / d
     p.mkdir(parents=True, exist_ok=True)
     return p
 
 
 def get_samples_dir() -> Path:
-    d = get_pipeline_config().get("samples_dir", "data/samples")
+    d = _require_string(get_pipeline_config(), "samples_dir")
     return _CONFIG_DIR / d
 
 
 def get_outputs_dir() -> Path:
-    d = get_pipeline_config().get("outputs_dir", "data/outputs")
+    d = _require_string(get_pipeline_config(), "outputs_dir")
     p = _CONFIG_DIR / d
     p.mkdir(parents=True, exist_ok=True)
     return p

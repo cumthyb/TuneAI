@@ -12,14 +12,18 @@ import pytest
 def mock_ocr_and_llm():
     from tuneai.core.adapters.ocr import OcrChar
 
-    chars = [
+    ocr_chars = [
         OcrChar(text="1", bbox=[100, 50, 15, 20], confidence=0.93),
         OcrChar(text="2", bbox=[120, 50, 15, 20], confidence=0.91),
         OcrChar(text="3", bbox=[140, 50, 15, 20], confidence=0.94),
         OcrChar(text="4", bbox=[160, 50, 15, 20], confidence=0.89),
         OcrChar(text="5", bbox=[180, 50, 15, 20], confidence=0.92),
     ]
-    with patch("tuneai.core.adapters.ocr.get_ocr_runner", return_value=lambda _img, _cfg: chars):
+    with (
+        patch("tuneai.core.application.pipeline.run_ocr", return_value=ocr_chars),
+        patch("tuneai.core.application.pipeline.recognize_key_signature", return_value="C"),
+        patch("tuneai.core.application.pipeline.validate_score", return_value=[]),
+    ):
         yield
 
 

@@ -4,9 +4,9 @@ export interface FullscreenImageProps {
   src: string
   alt: string
   /** 外层容器类名，用于与父布局配合 */
-  className?: string
+  className: string
   /** 图片类名 */
-  imgClassName?: string
+  imgClassName: string
 }
 
 /**
@@ -16,25 +16,22 @@ export interface FullscreenImageProps {
 export default function FullscreenImage({
   src,
   alt,
-  className = '',
-  imgClassName = '',
+  className,
+  imgClassName,
 }: FullscreenImageProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
 
   const handleFullscreenChange = useCallback(() => {
-    const el = document.fullscreenElement ?? (document as Document & { webkitFullscreenElement?: Element }).webkitFullscreenElement
-    setIsFullscreen(!!el)
+    setIsFullscreen(document.fullscreenElement !== null)
   }, [])
 
   useEffect(() => {
     document.addEventListener('fullscreenchange', handleFullscreenChange)
-    document.addEventListener('webkitfullscreenchange', handleFullscreenChange)
     return () => {
       document.removeEventListener('fullscreenchange', handleFullscreenChange)
-      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange)
-      if (document.fullscreenElement ?? (document as Document & { webkitFullscreenElement?: Element }).webkitFullscreenElement) {
-        document.exitFullscreen?.() ?? (document as Document & { webkitExitFullscreen?: () => Promise<void> }).webkitExitFullscreen?.()
+      if (document.fullscreenElement) {
+        void document.exitFullscreen()
       }
     }
   }, [handleFullscreenChange])
@@ -42,18 +39,11 @@ export default function FullscreenImage({
   const toggleFullscreen = useCallback(() => {
     const el = containerRef.current
     if (!el) return
-    const doc = document as Document & {
-      fullscreenElement?: Element
-      webkitFullscreenElement?: Element
-      exitFullscreen?: () => Promise<void>
-      webkitExitFullscreen?: () => Promise<void>
+    if (document.fullscreenElement) {
+      void document.exitFullscreen()
+      return
     }
-    const requestFs = el.requestFullscreen?.bind(el) ?? (el as HTMLDivElement & { webkitRequestFullscreen?: () => Promise<void> }).webkitRequestFullscreen?.bind(el)
-    if (doc.fullscreenElement ?? doc.webkitFullscreenElement) {
-      (doc.exitFullscreen ?? doc.webkitExitFullscreen)?.()
-    } else if (requestFs) {
-      void requestFs()
-    }
+    void el.requestFullscreen()
   }, [])
 
   return (

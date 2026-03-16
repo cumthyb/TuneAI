@@ -2,10 +2,10 @@ import type { ScoreJson } from '../types/api'
 
 interface ScoreViewProps {
   scoreJson: ScoreJson
-  className?: string
+  className: string
 }
 
-export default function ScoreView({ scoreJson, className = '' }: ScoreViewProps) {
+export default function ScoreView({ scoreJson, className }: ScoreViewProps) {
   return (
     <div className={`h-full overflow-auto bg-slate-950/80 p-4 font-mono text-xs ${className}`}>
       <div className="rounded-lg border border-cyan-500/20 bg-slate-900/50 p-3">
@@ -21,16 +21,16 @@ export default function ScoreView({ scoreJson, className = '' }: ScoreViewProps)
       </div>
       
       {/* 统计信息 */}
-      {scoreJson.measures && (
+      {Array.isArray(scoreJson.events) && (
         <div className="mt-3 grid grid-cols-2 gap-2">
           <div className="rounded border border-slate-700/50 bg-slate-900/30 p-2">
-            <div className="text-[10px] uppercase text-slate-500">Measures</div>
-            <div className="text-sm text-cyan-400">{scoreJson.measures.length}</div>
+            <div className="text-[10px] uppercase text-slate-500">Events</div>
+            <div className="text-sm text-cyan-400">{scoreJson.events.length}</div>
           </div>
           <div className="rounded border border-slate-700/50 bg-slate-900/30 p-2">
             <div className="text-[10px] uppercase text-slate-500">Source Key</div>
             <div className="text-sm text-purple-400">
-              {scoreJson.source_key?.label || 'N/A'}
+              {scoreJson.source_key.label}
             </div>
           </div>
         </div>

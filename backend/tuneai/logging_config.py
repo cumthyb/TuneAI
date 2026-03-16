@@ -31,7 +31,7 @@ _HUMAN_FMT = (
 )
 
 
-def setup_logging(level: str = "INFO", fmt: str = "json") -> None:
+def setup_logging(level: str, fmt: str) -> None:
     """
     初始化日志系统（幂等，只执行一次）。
     在 main.py 的 lifespan 中调用，也可在测试中直接调用。
@@ -52,20 +52,26 @@ def setup_logging(level: str = "INFO", fmt: str = "json") -> None:
     )
 
     # 文件 sink（rolling）
-    try:
-        from tuneai.config import get_logs_dir, get_logging_config
-        log_cfg = get_logging_config()
-        log_file = get_logs_dir() / log_cfg.get("log_file", "tuneai.log")
-        logger.add(
-            str(log_file),
-            level=level.upper(),
-            format=_JSON_FMT,
-            rotation=log_cfg.get("rotation", "10 MB"),
-            retention=log_cfg.get("retention", "7 days"),
-            encoding="utf-8",
-        )
-    except Exception:
-        pass  # 配置未就绪时跳过文件日志
+    from tuneai.config import get_logs_dir, get_logging_config
+
+    log_cfg = get_logging_config()
+    log_file = log_cfg.get("log_file")
+    rotation = log_cfg.get("rotation")
+    retention = log_cfg.get("retention")
+    if not isinstance(log_file, str) or not log_file.strip():
+        raise ValueError("logging.log_file must be a non-empty string")
+    if not isinstance(rotation, str) or not rotation.strip():
+        raise ValueError("logging.rotation must be a non-empty string")
+    if not isinstance(retention, str) or not retention.strip():
+        raise ValueError("logging.retention must be a non-empty string")
+    logger.add(
+        str(get_logs_dir() / log_file),
+        level=level.upper(),
+        format=_JSON_FMT,
+        rotation=rotation,
+        retention=retention,
+        encoding="utf-8",
+    )
 
     _setup_done = True
 

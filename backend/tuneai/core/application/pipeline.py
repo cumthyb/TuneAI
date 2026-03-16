@@ -87,8 +87,7 @@ async def run_pipeline(image_bytes: bytes, target_key: str, request_id: str) -> 
 
         t = time.monotonic()
         if not validate_target_key(source_tonic):
-            log.warning(f"unrecognized source key {source_tonic!r}, falling back to C")
-            source_tonic = "C"
+            raise PipelineError("INVALID_SOURCE_KEY", f"无法识别有效原调: {source_tonic!r}")
 
         score_ir = ScoreIR(
             score_id=request_id,

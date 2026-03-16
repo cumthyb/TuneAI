@@ -31,7 +31,6 @@ router = APIRouter()
 
 _ALLOWED_CONTENT_TYPES = {"image/png", "image/jpeg", "image/jpg", "image/webp"}
 _ALLOWED_FORMAT_HINT = "PNG、JPG 或 WEBP"
-_DEFAULT_MAX_IMAGE_SIZE_MB = 20
 
 
 def _list_providers_with_llm() -> list[str]:
@@ -56,7 +55,7 @@ def _list_providers_with_ocr() -> list[str]:
     providers: list[str] = []
     for p in list_supported_providers():
         ocr_cfg = get_ocr_config(p)
-        runner = str(ocr_cfg.get("runner", "")).strip()
+        runner = str(ocr_cfg.get("runner")).strip()
         if runner:
             providers.append(p)
     return sorted(set(providers))
@@ -69,11 +68,12 @@ def get_api_meta() -> ApiMetaResponse:
     ocr_providers = _list_providers_with_ocr()
     providers = sorted({*llm_providers, *vision_providers, *ocr_providers})
     default_provider = get_default_provider()
-    default_llm_provider = default_provider if default_provider in llm_providers else (llm_providers[0] if llm_providers else "")
-    default_vision_provider = (
-        default_provider if default_provider in vision_providers else (vision_providers[0] if vision_providers else "")
-    )
-    default_ocr_provider = default_provider if default_provider in ocr_providers else (ocr_providers[0] if ocr_providers else "")
+    if default_provider not in llm_providers:
+        raise ValueError(f"default provider has no llm config: {default_provider}")
+    if default_provider not in vision_providers:
+        raise ValueError(f"default provider has no vision_llm config: {default_provider}")
+    if default_provider not in ocr_providers:
+        raise ValueError(f"default provider has no ocr config: {default_provider}")
     return ApiMetaResponse(
         allowed_image_types=sorted(_ALLOWED_CONTENT_TYPES),
         max_image_size_mb=_get_max_image_size_mb(),
@@ -82,9 +82,9 @@ def get_api_meta() -> ApiMetaResponse:
         llm_providers=llm_providers,
         vision_llm_providers=vision_providers,
         ocr_providers=ocr_providers,
-        default_llm_provider=default_llm_provider,
-        default_vision_llm_provider=default_vision_provider,
-        default_ocr_provider=default_ocr_provider,
+        default_llm_provider=default_provider,
+        default_vision_llm_provider=default_provider,
+        default_ocr_provider=default_provider,
     )
 
 
@@ -95,10 +95,10 @@ def get_api_meta() -> ApiMetaResponse:
 async def transpose(
     image: UploadFile = File(...),
     target_key: str = Form(...),
-    provider: str | None = Form(default=None),
-    llm_provider: str | None = Form(default=None),
-    vision_llm_provider: str | None = Form(default=None),
-    ocr_provider: str | None = Form(default=None),
+    provider: str = Form(...),
+    llm_provider: str = Form(...),
+    vision_llm_provider: str = Form(...),
+    ocr_provider: str = Form(...),
     request_id: str = Depends(get_request_id),
 ):
     """同步移调接口，接收图片与目标调，返回结果图与 JSON。"""
@@ -116,7 +116,14 @@ async def transpose(
             )
 
         # Validate image content type
-        ct = (image.content_type or "").lower()
+        if not isinstance(image.content_type, str) or not image.content_type.strip():
+            return _error_response(
+                status_code=400,
+                error_code="MISSING_IMAGE_CONTENT_TYPE",
+                error_message="上传图片缺少 Content-Type",
+                request_id=request_id,
+            )
+        ct = image.content_type.strip().lower()
         if ct not in _ALLOWED_CONTENT_TYPES:
             return _error_response(
                 status_code=415,
@@ -144,44 +151,45 @@ async def transpose(
 
         log.info(f"transpose request: target_key={target_key}, size={len(image_bytes)}")
 
-        provider = provider.strip().lower() if provider else None
-        llm_provider = (llm_provider or provider)
-        vision_llm_provider = (vision_llm_provider or provider)
-        ocr_provider = (ocr_provider or provider)
+        provider = provider.strip().lower()
+        llm_provider = llm_provider.strip().lower()
+        vision_llm_provider = vision_llm_provider.strip().lower()
+        ocr_provider = ocr_provider.strip().lower()
+        if not provider or not llm_provider or not vision_llm_provider or not ocr_provider:
+            return _error_response(
+                status_code=400,
+                error_code="MISSING_PROVIDER",
+                error_message="provider / llm_provider / vision_llm_provider / ocr_provider 均为必填",
+                request_id=request_id,
+            )
 
         allowed_llm_providers = set(_list_providers_with_llm())
         allowed_vision_llm_providers = set(_list_providers_with_vision_llm())
         allowed_ocr_providers = set(_list_providers_with_ocr())
 
-        if llm_provider:
-            llm_provider = llm_provider.strip().lower()
-            if llm_provider not in allowed_llm_providers:
-                return _error_response(
-                    status_code=400,
-                    error_code="INVALID_LLM_PROVIDER",
-                    error_message=f"不支持的 LLM provider: {llm_provider}",
-                    request_id=request_id,
-                )
-        if vision_llm_provider:
-            vision_llm_provider = vision_llm_provider.strip().lower()
-            if vision_llm_provider not in allowed_vision_llm_providers:
-                return _error_response(
-                    status_code=400,
-                    error_code="INVALID_VISION_LLM_PROVIDER",
-                    error_message=f"不支持的 Vision LLM provider: {vision_llm_provider}",
-                    request_id=request_id,
-                )
-        if ocr_provider:
-            ocr_provider = ocr_provider.strip().lower()
-            if ocr_provider not in allowed_ocr_providers:
-                return _error_response(
-                    status_code=400,
-                    error_code="INVALID_OCR_PROVIDER",
-                    error_message=f"不支持的 OCR provider: {ocr_provider}",
-                    request_id=request_id,
-                )
+        if llm_provider not in allowed_llm_providers:
+            return _error_response(
+                status_code=400,
+                error_code="INVALID_LLM_PROVIDER",
+                error_message=f"不支持的 LLM provider: {llm_provider}",
+                request_id=request_id,
+            )
+        if vision_llm_provider not in allowed_vision_llm_providers:
+            return _error_response(
+                status_code=400,
+                error_code="INVALID_VISION_LLM_PROVIDER",
+                error_message=f"不支持的 Vision LLM provider: {vision_llm_provider}",
+                request_id=request_id,
+            )
+        if ocr_provider not in allowed_ocr_providers:
+            return _error_response(
+                status_code=400,
+                error_code="INVALID_OCR_PROVIDER",
+                error_message=f"不支持的 OCR provider: {ocr_provider}",
+                request_id=request_id,
+            )
 
-        timeout_seconds = float(get_pipeline_config().get("request_timeout_seconds", 60))
+        timeout_seconds = _get_request_timeout_seconds()
         try:
             with provider_overrides(
                 llm_provider=llm_provider,
@@ -209,6 +217,7 @@ async def transpose(
             )
 
         return TransposeSuccessResponse(
+            success=True,
             output_image=result.output_image_b64,
             score_json=result.score_ir.model_dump(),
             warnings=result.warnings,
@@ -218,7 +227,7 @@ async def transpose(
 
     finally:
         reset_request_id(token)
-        if get_pipeline_config().get("cleanup_after_response", True):
+        if _get_cleanup_after_response():
             cleanup(request_id)
 
 
@@ -230,6 +239,7 @@ def _error_response(
     request_id: str,
 ) -> JSONResponse:
     payload = TransposeErrorResponse(
+        success=False,
         error_code=error_code,
         error_message=error_message,
         request_id=request_id,
@@ -238,9 +248,21 @@ def _error_response(
 
 
 def _get_max_image_size_mb() -> int:
-    raw_value = get_pipeline_config().get("max_image_size_mb", _DEFAULT_MAX_IMAGE_SIZE_MB)
-    try:
-        value = int(raw_value)
-    except (TypeError, ValueError):
-        return _DEFAULT_MAX_IMAGE_SIZE_MB
-    return value if value > 0 else _DEFAULT_MAX_IMAGE_SIZE_MB
+    raw_value = get_pipeline_config().get("max_image_size_mb")
+    if not isinstance(raw_value, int) or raw_value <= 0:
+        raise ValueError("pipeline.max_image_size_mb must be a positive integer")
+    return raw_value
+
+
+def _get_request_timeout_seconds() -> float:
+    raw_value = get_pipeline_config().get("request_timeout_seconds")
+    if not isinstance(raw_value, (int, float)) or raw_value <= 0:
+        raise ValueError("pipeline.request_timeout_seconds must be a positive number")
+    return float(raw_value)
+
+
+def _get_cleanup_after_response() -> bool:
+    raw_value = get_pipeline_config().get("cleanup_after_response")
+    if not isinstance(raw_value, bool):
+        raise ValueError("pipeline.cleanup_after_response must be a boolean")
+    return raw_value
