@@ -11,7 +11,6 @@ from fastapi.testclient import TestClient
 def _strict_data(**overrides):
     data = {
         "target_key": "C",
-        "provider": "glm",
         "llm_provider": "glm",
         "vision_llm_provider": "glm",
         "ocr_provider": "glm",
@@ -67,7 +66,6 @@ class TestMissingFields:
             "/api/transpose",
             files={"image": ("test.png", io.BytesIO(minimal_png_bytes), "image/png")},
             data={
-                "provider": "glm",
                 "llm_provider": "glm",
                 "vision_llm_provider": "glm",
                 "ocr_provider": "glm",

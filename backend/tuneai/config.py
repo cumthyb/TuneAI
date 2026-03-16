@@ -40,13 +40,6 @@ def _require_string(parent: dict[str, Any], key: str) -> str:
     return s
 
 
-def _require_int(parent: dict[str, Any], key: str) -> int:
-    value = parent.get(key)
-    if not isinstance(value, int):
-        raise ValueError(f"{key} must be an integer")
-    return value
-
-
 def _normalize_provider_name(name: str) -> str:
     normalized = name.strip().lower()
     if not normalized:
@@ -58,10 +51,7 @@ def _resolve_provider_env(var_name: str, configured_default: str) -> str:
     env_value = os.getenv(var_name)
     if env_value is None:
         return configured_default
-    normalized = _normalize_provider_name(env_value)
-    if not normalized:
-        raise ValueError(f"{var_name} must be a non-empty provider name")
-    return normalized
+    return _normalize_provider_name(env_value)
 
 
 def _provider_entry(cfg: dict[str, Any], provider: str) -> dict[str, Any]:
@@ -119,19 +109,21 @@ def load_config() -> dict[str, Any]:
     vision_provider = _resolve_provider_env("TUNEAI_VISION_LLM_PROVIDER", default_provider)
     ocr_provider = _resolve_provider_env("TUNEAI_OCR_PROVIDER", default_provider)
 
-    if key := os.getenv("TUNEAI_LLM_API_KEY"):
-        _overlay_provider_section(cfg, provider=text_provider, section="llm", updates={"api_key": key})
-    if base_url := os.getenv("TUNEAI_LLM_BASE_URL"):
-        _overlay_provider_section(cfg, provider=text_provider, section="llm", updates={"base_url": base_url})
-    if model := os.getenv("TUNEAI_LLM_MODEL"):
-        _overlay_provider_section(cfg, provider=text_provider, section="llm", updates={"model": model})
+    llm_updates = {
+        "api_key": os.getenv("TUNEAI_LLM_API_KEY"),
+        "base_url": os.getenv("TUNEAI_LLM_BASE_URL"),
+        "model": os.getenv("TUNEAI_LLM_MODEL"),
+    }
+    if any(v is not None for v in llm_updates.values()):
+        _overlay_provider_section(cfg, provider=text_provider, section="llm", updates=llm_updates)
 
-    if key := os.getenv("TUNEAI_VISION_LLM_API_KEY"):
-        _overlay_provider_section(cfg, provider=vision_provider, section="vision_llm", updates={"api_key": key})
-    if base_url := os.getenv("TUNEAI_VISION_LLM_BASE_URL"):
-        _overlay_provider_section(cfg, provider=vision_provider, section="vision_llm", updates={"base_url": base_url})
-    if model := os.getenv("TUNEAI_VISION_LLM_MODEL"):
-        _overlay_provider_section(cfg, provider=vision_provider, section="vision_llm", updates={"model": model})
+    vision_updates = {
+        "api_key": os.getenv("TUNEAI_VISION_LLM_API_KEY"),
+        "base_url": os.getenv("TUNEAI_VISION_LLM_BASE_URL"),
+        "model": os.getenv("TUNEAI_VISION_LLM_MODEL"),
+    }
+    if any(v is not None for v in vision_updates.values()):
+        _overlay_provider_section(cfg, provider=vision_provider, section="vision_llm", updates=vision_updates)
 
     ocr_updates = {
         "api_key": os.getenv("TUNEAI_OCR_API_KEY"),
@@ -158,45 +150,46 @@ def get_config() -> dict[str, Any]:
     return _config
 
 
-def get_provider_policy() -> dict[str, Any]:
-    return _require_object(get_config(), "provider_policy")
-
-
 def get_default_provider() -> str:
-    provider = _normalize_provider_name(_require_string(get_provider_policy(), "default_provider"))
-    if provider not in get_providers_config():
-        raise ValueError(f"default_provider is not registered: {provider}")
-    return provider
-
-
-def get_providers_config() -> dict[str, Any]:
-    return _require_object(get_config(), "providers")
+    return get_config()["provider_policy"]["default_provider"]
 
 
 def list_registered_providers() -> list[str]:
-    providers = [str(k).strip().lower() for k in get_providers_config().keys() if str(k).strip()]
-    return sorted(set(providers))
-
-
-def get_provider_config(provider: str | None = None) -> dict[str, Any]:
-    selected = _normalize_provider_name(provider if provider is not None else get_default_provider())
-    providers = get_providers_config()
-    raw = providers.get(selected)
-    if not isinstance(raw, dict):
-        raise ValueError(f"provider entry must be an object: {selected}")
-    return raw
+    providers = get_config()["providers"]
+    return sorted(str(k).strip().lower() for k in providers.keys() if str(k).strip())
 
 
 def get_llm_config(provider: str | None = None) -> dict[str, Any]:
-    return _require_object(get_provider_config(provider), "llm")
+    p = _normalize_provider_name(provider if provider is not None else get_default_provider())
+    entry = get_config()["providers"].get(p)
+    if not isinstance(entry, dict):
+        raise ValueError(f"provider entry must be an object: {p}")
+    llm = entry.get("llm")
+    if not isinstance(llm, dict):
+        raise ValueError(f"no llm config for provider: {p}")
+    return llm
 
 
 def get_vision_llm_config(provider: str | None = None) -> dict[str, Any]:
-    return _require_object(get_provider_config(provider), "vision_llm")
+    p = _normalize_provider_name(provider if provider is not None else get_default_provider())
+    entry = get_config()["providers"].get(p)
+    if not isinstance(entry, dict):
+        raise ValueError(f"provider entry must be an object: {p}")
+    vision_llm = entry.get("vision_llm")
+    if not isinstance(vision_llm, dict):
+        raise ValueError(f"no vision_llm config for provider: {p}")
+    return vision_llm
 
 
 def get_ocr_config(provider: str | None = None) -> dict[str, Any]:
-    return _require_object(get_provider_config(provider), "ocr")
+    p = _normalize_provider_name(provider if provider is not None else get_default_provider())
+    entry = get_config()["providers"].get(p)
+    if not isinstance(entry, dict):
+        raise ValueError(f"provider entry must be an object: {p}")
+    ocr = entry.get("ocr")
+    if not isinstance(ocr, dict):
+        raise ValueError(f"no ocr config for provider: {p}")
+    return ocr
 
 
 def get_pipeline_config() -> dict[str, Any]:
@@ -211,16 +204,14 @@ def get_frontend_config() -> dict[str, Any]:
     return _require_object(get_config(), "frontend")
 
 
-def get_server_config() -> dict[str, Any]:
-    return _require_object(get_config(), "server")
-
-
 def get_server_host() -> str:
-    return _require_string(get_server_config(), "host")
+    return _require_string(get_config()["server"], "host")
 
 
 def get_server_port() -> int:
-    port = _require_int(get_server_config(), "port")
+    port = get_config()["server"].get("port")
+    if not isinstance(port, int):
+        raise ValueError("server.port must be an integer")
     if port <= 0:
         raise ValueError("server.port must be greater than 0")
     return port

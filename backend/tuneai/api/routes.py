@@ -77,7 +77,7 @@ def get_api_meta() -> ApiMetaResponse:
     default_provider = _pick_default_provider(providers, configured_default, "llm+vision_llm+ocr")
     return ApiMetaResponse(
         allowed_image_types=sorted(_ALLOWED_CONTENT_TYPES),
-        max_image_size_mb=_get_max_image_size_mb(),
+        max_image_size_mb=int(get_pipeline_config()["max_image_size_mb"]),
         providers=providers,
         default_provider=default_provider,
         llm_providers=llm_providers,
@@ -96,7 +96,6 @@ def get_api_meta() -> ApiMetaResponse:
 async def transpose(
     image: UploadFile = File(...),
     target_key: str = Form(...),
-    provider: str = Form(...),
     llm_provider: str = Form(...),
     vision_llm_provider: str = Form(...),
     ocr_provider: str = Form(...),
@@ -139,7 +138,7 @@ async def transpose(
                 error_message="上传的图片为空",
                 request_id=request_id,
             )
-        max_image_size_mb = _get_max_image_size_mb()
+        max_image_size_mb = int(get_pipeline_config()["max_image_size_mb"])
         if len(image_bytes) > max_image_size_mb * 1024 * 1024:
             return _error_response(
                 status_code=413,
@@ -187,7 +186,7 @@ async def transpose(
                 request_id=request_id,
             )
 
-        timeout_seconds = _get_request_timeout_seconds()
+        timeout_seconds = float(get_pipeline_config()["request_timeout_seconds"])
         try:
             result = await asyncio.wait_for(
                 run_pipeline(
@@ -227,7 +226,7 @@ async def transpose(
 
     finally:
         reset_request_id(token)
-        if _get_cleanup_after_response():
+        if get_pipeline_config()["cleanup_after_response"]:
             cleanup(request_id)
 
 
@@ -245,24 +244,3 @@ def _error_response(
         request_id=request_id,
     )
     return JSONResponse(status_code=status_code, content=payload.model_dump())
-
-
-def _get_max_image_size_mb() -> int:
-    raw_value = get_pipeline_config().get("max_image_size_mb")
-    if not isinstance(raw_value, int) or raw_value <= 0:
-        raise ValueError("pipeline.max_image_size_mb must be a positive integer")
-    return raw_value
-
-
-def _get_request_timeout_seconds() -> float:
-    raw_value = get_pipeline_config().get("request_timeout_seconds")
-    if not isinstance(raw_value, (int, float)) or raw_value <= 0:
-        raise ValueError("pipeline.request_timeout_seconds must be a positive number")
-    return float(raw_value)
-
-
-def _get_cleanup_after_response() -> bool:
-    raw_value = get_pipeline_config().get("cleanup_after_response")
-    if not isinstance(raw_value, bool):
-        raise ValueError("pipeline.cleanup_after_response must be a boolean")
-    return raw_value
