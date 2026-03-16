@@ -92,6 +92,13 @@ def ensure_test_config():
         TEST_CONFIG_PATH.unlink()
 
 
+@pytest.fixture
+def run_integration(request):
+    """集成测试守卫：未传 --run-integration 则跳过。"""
+    if not request.config.getoption("run_integration"):
+        pytest.skip("requires --run-integration")
+
+
 @pytest.fixture(autouse=True, scope="session")
 def setup_logging_once(ensure_test_config):
     """测试期间启用 human-readable 日志（stderr），跳过文件日志。"""

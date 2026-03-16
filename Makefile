@@ -11,10 +11,11 @@
 #   make install   安装所有依赖（前端 npm + 后端 poetry）
 #   make build     构建前端产物（frontend/dist）
 #   make test-int  运行集成测试（需要真实 OCR 模型 + LLM 服务）
+#   make test-ocr  运行 OCR 集成测试（匆匆那年.png → 真实 OCR API）
 #   make lint      检查前端代码风格
 #   make help      显示此帮助
 
-.PHONY: help dev prod web test test-int install build lint
+.PHONY: help dev prod web test test-int test-ocr test-preprocess install build lint
 # Note: $(VENV)/bin/python is intentionally NOT .PHONY — Make uses it as a file sentinel
 .DEFAULT_GOAL := help
 
@@ -44,6 +45,8 @@ help:
 	@echo "  make web        启动前端开发服务器  (Vite → http://localhost:$(FRONTEND_PORT))"
 	@echo "  make test       运行所有单元测试     (外部引擎均 mock，无需 OCR 模型/LLM 服务)"
 	@echo "  make test-int   运行集成测试         (需要真实 OCR 模型 + LLM 服务)"
+	@echo "  make test-preprocess  验证预处理流程 (匆匆那年.png → 灰度/去噪/deskew，无需外部服务)"
+	@echo "  make test-ocr   运行 OCR 集成测试    (匆匆那年.png → 真实 OCR API)"
 	@echo "  make install    安装所有依赖         (前端 npm + 后端 poetry)"
 	@echo "  make build      构建前端产物         (frontend/dist)"
 	@echo "  make lint       前端代码检查"
@@ -77,6 +80,16 @@ test:
 test-int:
 	@echo "→ 运行集成测试（需要真实 OCR 模型 + LLM 服务）..."
 	$(PYTEST) tests/ --run-integration -v
+
+# 预处理测试：以匆匆那年.png 为输入，验证本地图像预处理流程（无需外部服务）
+test-preprocess:
+	@echo "→ 运行预处理测试（data/samples/匆匆那年.png → 灰度/去噪/deskew）..."
+	$(PYTEST) tests/domain/test_preprocess.py::TestPreprocessWithSample -v
+
+# OCR 集成测试：以匆匆那年.png 为输入，调用真实 OCR API 验证字符识别结果
+test-ocr:
+	@echo "→ 运行 OCR 集成测试（data/samples/匆匆那年.png → 真实 OCR API）..."
+	$(PYTEST) tests/adapters/test_ocr.py::TestOcrIntegration --run-integration -v
 
 # ── 安装 / 构建 ─────────────────────────────────────────────────────────────
 

@@ -61,12 +61,6 @@ class TestPipelineWithMocks:
         assert (req_dir / "output.png").exists()
 
 
-@pytest.fixture
-def run_integration(request):
-    if not request.config.getoption("run_integration"):
-        pytest.skip("requires --run-integration")
-
-
 class TestPipelineIntegration:
     def test_real_ocr_on_sample(self, sample_image_bytes, run_integration):
         from tuneai.core.adapters.ocr import run_ocr
