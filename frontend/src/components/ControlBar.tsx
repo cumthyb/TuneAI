@@ -164,11 +164,6 @@ export default function ControlBar({
           <span className="text-xs font-mono text-cyan-400/70">12-TET Neural</span>
         </div>
 
-        <div className="hidden sm:flex flex-col gap-1">
-          <span className="text-[10px] font-medium text-slate-500 uppercase">Precision</span>
-          <span className="text-xs font-mono text-cyan-400/70">99.8%</span>
-        </div>
-
         {/* AI处理按钮 */}
         <div className="flex items-center">
           <button
