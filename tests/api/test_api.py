@@ -105,6 +105,23 @@ class TestRuntimeErrors:
         assert resp.status_code == 422
         assert resp.json()["error_code"] == "NO_NOTES_FOUND"
 
+    def test_pipeline_internal_error_returns_500(self, minimal_png_bytes):
+        from tuneai.core.application.pipeline import PipelineError
+
+        with patch(
+            "tuneai.api.routes.run_pipeline",
+            new=AsyncMock(side_effect=PipelineError("PIPELINE_ERROR", "internal")),
+        ):
+            from tuneai.main import app
+            with TestClient(app, raise_server_exceptions=False) as c:
+                resp = c.post(
+                    "/api/transpose",
+                    files={"image": ("score.png", io.BytesIO(minimal_png_bytes), "image/png")},
+                    data={"target_key": "C"},
+                )
+        assert resp.status_code == 500
+        assert resp.json()["error_code"] == "PIPELINE_ERROR"
+
 
 class TestSuccessResponse:
     def test_response_structure(self, client, minimal_png_bytes):

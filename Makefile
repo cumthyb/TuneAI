@@ -54,16 +54,10 @@ backend:
 # ── 测试 ────────────────────────────────────────────────────────────────────
 
 # 单元测试：所有外部引擎（PaddleOCR、LLM）均通过 mock 替换
-# 涵盖：music / ocr / llm / api / pipeline
+# 涵盖：tests/ 下按模块目录组织的全部单测
 test:
 	@echo "→ 运行单元测试（外部引擎均 mock）..."
-	PYTHONPATH=$(BACKEND_DIR) $(PYTEST) \
-		tests/test_music.py \
-		tests/test_ocr.py \
-		tests/test_llm.py \
-		tests/test_api.py \
-		tests/test_pipeline.py \
-		-v
+	PYTHONPATH=$(BACKEND_DIR) $(PYTEST) tests/ -v
 
 # 集成测试：需要本地 OCR 模型已下载 + LLM 服务可访问
 test-int:

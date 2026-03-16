@@ -7,8 +7,6 @@ from unittest.mock import patch
 
 import pytest
 
-from tuneai.schemas.score_ir import KeyInfo, NoteEvent, ScoreIR
-
 
 @pytest.fixture
 def mock_ocr_and_llm():
@@ -23,37 +21,6 @@ def mock_ocr_and_llm():
     ]
     with patch("tuneai.core.adapters.ocr.get_ocr_runner", return_value=lambda _img, _cfg: chars):
         yield
-
-
-class TestMusicTranspositionOnly:
-    def test_transpose_c_to_g(self):
-        from tuneai.core.domain.music import transpose_score_ir
-
-        events = [NoteEvent(id=f"n{i}", degree=d, accidental="natural", octave_shift=0) for i, d in enumerate([1, 2, 3, 4, 5])]
-        score = ScoreIR(
-            score_id="test",
-            source_key=KeyInfo(label="1=C", tonic="C"),
-            target_key=KeyInfo(label="1=C", tonic="C"),
-            events=events,
-        )
-        result = transpose_score_ir(score, "G")
-        assert result.target_key.tonic == "G"
-        assert len(result.events) == 5
-
-    def test_score_ir_serialization_uses_events(self):
-        from tuneai.core.domain.music import transpose_score_ir
-
-        score = ScoreIR(
-            score_id="test",
-            source_key=KeyInfo(label="1=C", tonic="C"),
-            target_key=KeyInfo(label="1=C", tonic="C"),
-            events=[NoteEvent(id="n0", degree=1, accidental="natural", octave_shift=0)],
-        )
-        result = transpose_score_ir(score, "F")
-        dumped = result.model_dump()
-        assert "events" in dumped
-        assert "measures" not in dumped
-        assert dumped["target_key"]["tonic"] == "F"
 
 
 class TestPipelineWithMocks:
