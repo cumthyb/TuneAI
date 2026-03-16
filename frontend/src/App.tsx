@@ -63,7 +63,7 @@ export default function App() {
       />
 
       {/* 主内容区：左右面板 */}
-      <div className="relative flex-1 px-4 py-6 sm:px-6 lg:px-8 xl:px-10">
+      <div className="relative flex flex-1 flex-col px-4 py-6 sm:px-6 lg:px-8 xl:px-10">
         {/* 主区科技感装饰层 */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
           <div className="absolute inset-0 bg-[linear-gradient(rgba(99,102,241,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(139,92,246,0.05)_1px,transparent_1px)] bg-[size:48px_48px] [mask-image:radial-gradient(ellipse_at_center,black_45%,transparent_85%)]" />
@@ -71,7 +71,7 @@ export default function App() {
           <div className="absolute -right-24 bottom-0 h-72 w-72 rounded-full bg-violet-500/15 blur-3xl" />
         </div>
 
-        <div className="relative grid w-full grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">
+        <div className="relative grid flex-1 w-full grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">
           {/* 左侧面板：输入/原图 */}
           <InputPanel
             selectedFile={selectedFile}
