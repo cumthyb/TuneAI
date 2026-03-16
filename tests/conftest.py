@@ -54,6 +54,19 @@ def sample_image_bytes(sample_image_path: Path) -> bytes:
 
 
 @pytest.fixture(scope="session")
+def sample_image_array(sample_image_bytes: bytes):
+    """将样本简谱图片解码为 OpenCV 灰度图像。"""
+    import cv2
+    import numpy as np
+
+    arr = np.frombuffer(sample_image_bytes, dtype=np.uint8)
+    img = cv2.imdecode(arr, cv2.IMREAD_GRAYSCALE)
+    if img is None:
+        pytest.skip("样本图片解码失败")
+    return img
+
+
+@pytest.fixture(scope="session")
 def minimal_png_bytes() -> bytes:
     """最小合法 PNG（1×1 白色像素），用于 API 格式校验测试。"""
     import base64

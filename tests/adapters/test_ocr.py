@@ -2,13 +2,11 @@
 
 from unittest.mock import MagicMock, patch
 
-import numpy as np
-
 from tuneai.core.adapters.ocr import OcrChar, run_ocr
 
 
 class TestRunOcr:
-    def test_supported_provider_calls_runner(self):
+    def test_supported_provider_calls_runner(self, sample_image_array):
         sample = [OcrChar(text="1", bbox=[10, 20, 30, 40], confidence=0.9)]
         runner = MagicMock(return_value=sample)
 
@@ -23,12 +21,12 @@ class TestRunOcr:
             ),
             patch("tuneai.core.adapters.ocr.get_ocr_runner", return_value=runner),
         ):
-            result = run_ocr(np.zeros((10, 10), dtype=np.uint8))
+            result = run_ocr(sample_image_array)
 
         assert result == sample
         runner.assert_called_once()
 
-    def test_unknown_provider_returns_empty(self):
+    def test_unknown_provider_returns_empty(self, sample_image_array):
         with (
             patch(
                 "tuneai.config.get_ocr_config",
@@ -36,11 +34,11 @@ class TestRunOcr:
             ),
             patch("tuneai.core.adapters.ocr.get_ocr_runner", return_value=None),
         ):
-            result = run_ocr(np.zeros((10, 10), dtype=np.uint8))
+            result = run_ocr(sample_image_array)
 
         assert result == []
 
-    def test_provider_exception_returns_empty(self):
+    def test_provider_exception_returns_empty(self, sample_image_array):
         runner = MagicMock(side_effect=RuntimeError("boom"))
         with (
             patch(
@@ -53,6 +51,6 @@ class TestRunOcr:
             ),
             patch("tuneai.core.adapters.ocr.get_ocr_runner", return_value=runner),
         ):
-            result = run_ocr(np.zeros((10, 10), dtype=np.uint8))
+            result = run_ocr(sample_image_array)
 
         assert result == []
