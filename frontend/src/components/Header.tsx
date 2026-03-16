@@ -7,6 +7,9 @@ interface HeaderProps {
   targetKey: TargetKey
   controlError: string | null
   isLoading: boolean
+  systemOnline: boolean
+  apiReady: boolean
+  isCheckingStatus: boolean
   onTargetKeyChange: (key: TargetKey) => void
   onSubmit: () => void
 }
@@ -16,12 +19,21 @@ export default function Header({
   targetKey,
   controlError,
   isLoading,
+  systemOnline,
+  apiReady,
+  isCheckingStatus,
   onTargetKeyChange,
   onSubmit,
 }: HeaderProps) {
+  const systemDotClass = systemOnline ? 'bg-emerald-400' : 'bg-rose-400'
+  const systemTextClass = systemOnline ? 'text-emerald-300' : 'text-rose-300'
+  const apiDotClass = isCheckingStatus ? 'bg-amber-400' : apiReady ? 'bg-cyan-400' : 'bg-rose-400'
+  const apiTextClass = isCheckingStatus ? 'text-amber-300' : apiReady ? 'text-cyan-300' : 'text-rose-300'
+  const apiLabel = isCheckingStatus ? 'API CHECKING' : apiReady ? 'API READY' : 'API DEGRADED'
+
   return (
-    <header className="relative shrink-0 border-b border-cyan-500/10 bg-slate-950/60 backdrop-blur-xl px-4 py-5 sm:px-6">
-      <div className="mx-auto max-w-6xl">
+    <header className="relative shrink-0 border-b border-cyan-500/10 bg-slate-950/60 px-4 py-5 backdrop-blur-xl sm:px-6 lg:px-8 xl:px-10">
+      <div className="w-full">
         <div className="mb-4 flex items-center gap-4">
           {/* AI Logo */}
           <div className="relative flex h-12 w-12 items-center justify-center">
@@ -51,12 +63,15 @@ export default function Header({
           </div>
 
           {/* 右侧状态信息 */}
-          <div className="hidden sm:flex items-center gap-4 text-xs font-mono text-slate-500">
-            <div className="flex items-center gap-1.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-              SYSTEM ONLINE
+          <div className="hidden items-center gap-4 text-xs font-mono text-slate-500 sm:flex">
+            <div className={`flex items-center gap-1.5 ${systemTextClass}`}>
+              <span className={`h-1.5 w-1.5 rounded-full animate-pulse ${systemDotClass}`} />
+              {systemOnline ? 'SYSTEM ONLINE' : 'SYSTEM OFFLINE'}
             </div>
-            <div className="text-cyan-500/60">API READY</div>
+            <div className={`flex items-center gap-1.5 ${apiTextClass}`}>
+              <span className={`h-1.5 w-1.5 rounded-full animate-pulse ${apiDotClass}`} />
+              {apiLabel}
+            </div>
           </div>
         </div>
         

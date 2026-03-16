@@ -36,6 +36,13 @@ const { devPort, apiTarget } = loadAppConfig()
 export default defineConfig({
   plugins: [react()],
   root: '.',
+  css: {
+    preprocessorOptions: {
+      scss: {
+        api: 'modern-compiler',
+      },
+    },
+  },
   build: {
     outDir: 'dist',
     emptyOutDir: true,

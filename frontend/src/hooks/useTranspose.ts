@@ -9,6 +9,12 @@ type UploadRules = {
   maxSizeMB: number
 }
 
+type ServiceStatus = {
+  systemOnline: boolean
+  apiReady: boolean
+  isCheckingStatus: boolean
+}
+
 const logger = {
   error(message: string, payload?: Record<string, unknown>) {
     if (payload) {
@@ -39,17 +45,29 @@ async function transpose(params: { image: File; targetKey: TargetKey }): Promise
   return data
 }
 
-async function fetchApiMeta(): Promise<ApiMetaResponse | null> {
-  const response = await fetch('/api/meta')
-  if (!response.ok) return null
-  let data: unknown
+async function checkServiceStatus(): Promise<{
+  systemOnline: boolean
+  apiReady: boolean
+  meta: ApiMetaResponse | null
+}> {
   try {
-    data = await response.json()
+    const response = await fetch('/api/meta', { cache: 'no-store' })
+    if (!response.ok) {
+      return { systemOnline: true, apiReady: false, meta: null }
+    }
+    let data: unknown
+    try {
+      data = await response.json()
+    } catch {
+      return { systemOnline: true, apiReady: false, meta: null }
+    }
+    if (!isApiMetaResponse(data)) {
+      return { systemOnline: true, apiReady: false, meta: null }
+    }
+    return { systemOnline: true, apiReady: true, meta: data }
   } catch {
-    return null
+    return { systemOnline: false, apiReady: false, meta: null }
   }
-  if (!isApiMetaResponse(data)) return null
-  return data
 }
 
 function isTransposeResponse(value: unknown): value is TransposeResponse {
@@ -128,26 +146,51 @@ export function useTranspose() {
     allowedImageTypes: DEFAULT_ALLOWED_IMAGE_TYPES,
     maxSizeMB: DEFAULT_MAX_SIZE_MB,
   })
+  const [serviceStatus, setServiceStatus] = useState<ServiceStatus>({
+    systemOnline: false,
+    apiReady: false,
+    isCheckingStatus: true,
+  })
 
   useEffect(() => {
     let cancelled = false
+    let timer: number | null = null
     const loadRules = async () => {
       try {
-        const meta = await fetchApiMeta()
-        if (!meta || cancelled) return
-        setUploadRules({
-          allowedImageTypes:
-            meta.allowed_image_types.length > 0 ? meta.allowed_image_types : DEFAULT_ALLOWED_IMAGE_TYPES,
-          maxSizeMB: meta.max_image_size_mb > 0 ? meta.max_image_size_mb : DEFAULT_MAX_SIZE_MB,
+        const { systemOnline, apiReady, meta } = await checkServiceStatus()
+        if (cancelled) return
+        setServiceStatus({
+          systemOnline,
+          apiReady,
+          isCheckingStatus: false,
         })
+        if (meta) {
+          setUploadRules({
+            allowedImageTypes:
+              meta.allowed_image_types.length > 0 ? meta.allowed_image_types : DEFAULT_ALLOWED_IMAGE_TYPES,
+            maxSizeMB: meta.max_image_size_mb > 0 ? meta.max_image_size_mb : DEFAULT_MAX_SIZE_MB,
+          })
+        }
       } catch (err) {
+        if (cancelled) return
         const message = err instanceof Error ? err.message : 'unknown error'
         logger.error('load api meta failed', { error: message })
+        setServiceStatus({
+          systemOnline: false,
+          apiReady: false,
+          isCheckingStatus: false,
+        })
       }
     }
-    loadRules()
+    void loadRules()
+    timer = window.setInterval(() => {
+      void loadRules()
+    }, 10000)
     return () => {
       cancelled = true
+      if (timer != null) {
+        window.clearInterval(timer)
+      }
     }
   }, [])
 
@@ -241,6 +284,7 @@ export function useTranspose() {
     targetKey,
     controlError,
     pageState,
+    serviceStatus,
     
     // 计算属性
     isLoading,
