@@ -6,6 +6,8 @@ from pydantic import BaseModel, Field
 
 from tuneai.core.adapters.llm_client import build_chat_openai, get_text_llm_config
 from tuneai.logging_config import get_logger
+from tuneai.schemas.request_response import Warning
+from tuneai.schemas.score_ir import NoteEvent, ScoreIR
 
 
 class KeyCorrectionResult(BaseModel):
@@ -103,3 +105,49 @@ def assess_pitch_range(
         confidence=1.0,
         notes="MVP stub: no assessment performed",
     )
+
+
+class LLMValidationResult(BaseModel):
+    is_valid: bool = Field(description="转调结果是否音乐上合理")
+    confidence: float = Field(description="置信度 0-1", ge=0.0, le=1.0)
+    issues: list[str] = Field(default_factory=list, description="发现的问题列表（无问题时为空）")
+    notes: str = Field(description="补充说明")
+
+
+def validate_score_with_llm(score: ScoreIR, request_id: str) -> list[Warning]:
+    log = get_logger("validate_llm")
+    cfg = get_text_llm_config()
+    api_key = cfg.get("api_key")
+    if not isinstance(api_key, str) or not api_key.strip():
+        raise ValueError("llm.api_key must be configured for validate_score")
+    sample = [
+        {"id": e.id, "degree": e.degree, "accidental": e.accidental, "octave_shift": e.octave_shift}
+        for e in score.events if isinstance(e, NoteEvent)
+    ][:20]
+    prompt = (
+        "你是简谱（数字谱）专家。请检验以下移调结果是否音乐上合理。\n\n"
+        f"原调: 1={score.source_key.tonic}\n"
+        f"目标调: 1={score.target_key.tonic}\n"
+        f"音符样本（前20个）:\n{json.dumps(sample, ensure_ascii=False)}\n\n"
+        "请判断：\n"
+        "1. 调号转换是否正确（原调 → 目标调 的音程关系是否合理）\n"
+        "2. 音符序列中是否存在可疑模式（如大量 #/b 临时记号，可能暗示调号识别有误）\n"
+        "3. 整体是否符合简谱转调的音乐规律"
+    )
+    result: LLMValidationResult = _structured(LLMValidationResult).invoke(prompt)
+    log.debug(
+        f"[validate] LLM: is_valid={result.is_valid}, conf={result.confidence:.2f}, issues={result.issues}"
+    )
+    if not result.is_valid or result.issues:
+        return [
+            Warning(
+                type="llm_validation",
+                message=(
+                    f"LLM 校验发现问题 (conf={result.confidence:.2f}): "
+                    + "; ".join(result.issues)
+                    if result.issues
+                    else result.notes
+                ),
+            )
+        ]
+    return []

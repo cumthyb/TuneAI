@@ -22,7 +22,9 @@ def mock_ocr_and_llm():
     with (
         patch("tuneai.core.application.pipeline.run_ocr", return_value=ocr_chars),
         patch("tuneai.core.application.pipeline.recognize_key_signature", return_value="C"),
-        patch("tuneai.core.application.pipeline.validate_score", return_value=[]),
+        patch("tuneai.core.application.pipeline.validate_score_rules", return_value=[]),
+        patch("tuneai.core.application.pipeline.validate_score_with_llm", return_value=[]),
+        patch("tuneai.core.application.pipeline.validate_score_with_vision", return_value=[]),
     ):
         yield
 

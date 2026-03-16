@@ -5,9 +5,12 @@ import re
 
 import cv2
 import numpy as np
+from pydantic import BaseModel, Field
 
 from tuneai.core.adapters.llm_client import build_chat_openai, get_vision_llm_config
 from tuneai.logging_config import get_logger
+from tuneai.schemas.request_response import Warning
+from tuneai.schemas.score_ir import ScoreIR
 
 _KEY_RE = re.compile(r"1\s*[=＝]\s*([A-G][#b♯♭]?)")
 _TONIC_RE = re.compile(r"\b([A-G][#b]?)\b")
@@ -74,3 +77,54 @@ def _parse_key(text: str) -> str:
 
 def _normalize(tonic: str) -> str:
     return tonic.replace("♯", "#").replace("♭", "b")
+
+
+class VLValidationResult(BaseModel):
+    key_correct: bool = Field(description="图中调号与识别结果是否一致")
+    detected_key: str = Field(description="VL 从图中看到的调号，如 G、Bb")
+    confidence: float = Field(description="置信度 0-1", ge=0.0, le=1.0)
+    notes: str = Field(description="补充说明")
+
+
+_VL_VALIDATE_PROMPT = (
+    "这是一张简谱图片。系统已识别出调号为 {source_key}，目标转调为 {target_key}。\n\n"
+    "请完成以下两项视觉验证：\n"
+    "1. 图中实际的调号是什么（格式如 1=G、1=Bb）？\n"
+    "2. 系统识别的调号 1={source_key} 是否与图中一致？\n\n"
+    "直接给出判断，不需要额外解释。"
+)
+
+
+def validate_score_with_vision(score: ScoreIR, original_image: np.ndarray, request_id: str) -> list[Warning]:
+    log = get_logger("validate_vision")
+    cfg = get_vision_llm_config()
+    api_key = cfg.get("api_key")
+    if not isinstance(api_key, str) or not api_key.strip():
+        raise ValueError("vision_llm.api_key must be configured for validate_score")
+    _, buf = cv2.imencode(".png", original_image)
+    b64 = base64.b64encode(buf.tobytes()).decode()
+    prompt = _VL_VALIDATE_PROMPT.format(source_key=score.source_key.tonic, target_key=score.target_key.tonic)
+    from langchain_core.messages import HumanMessage
+    llm = _get_llm()
+    chain = llm.with_structured_output(VLValidationResult, method="function_calling")
+    message = HumanMessage(
+        content=[
+            {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}"}},
+            {"type": "text", "text": prompt},
+        ]
+    )
+    result = chain.invoke([message])
+    log.debug(
+        f"[validate] VL: key_correct={result.key_correct}, detected={result.detected_key!r}, conf={result.confidence:.2f}"
+    )
+    if not result.key_correct:
+        return [
+            Warning(
+                type="vl_key_mismatch",
+                message=(
+                    f"VL 视觉校验：图中调号可能为 1={result.detected_key}，"
+                    f"与识别结果 1={score.source_key.tonic} 不符 (conf={result.confidence:.2f})"
+                ),
+            )
+        ]
+    return []

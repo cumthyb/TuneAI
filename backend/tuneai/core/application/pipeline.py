@@ -5,15 +5,15 @@ import base64
 import time
 from dataclasses import dataclass, field
 
-from tuneai.core.adapters.llm import correct_low_confidence_events
+from tuneai.core.adapters.llm import correct_low_confidence_events, validate_score_with_llm
 from tuneai.core.adapters.ocr import run_ocr
-from tuneai.core.adapters.vision import recognize_key_signature
+from tuneai.core.adapters.vision import recognize_key_signature, validate_score_with_vision
 from tuneai.core.domain.filter import filter_note_digits
 from tuneai.core.domain.music import transpose_score_ir, validate_target_key
 from tuneai.core.domain.pitch_adjust import adjust_pitch
 from tuneai.core.domain.preprocess import preprocess_image
 from tuneai.core.domain.render import render_output
-from tuneai.core.domain.validate import validate_score
+from tuneai.core.domain.validate import validate_score_rules
 from tuneai.core.infra.storage import save_input_image, save_output_image
 from tuneai.logging_config import get_logger
 from tuneai.schemas.request_response import Warning
@@ -99,11 +99,15 @@ async def run_pipeline(image_bytes: bytes, target_key: str, request_id: str) -> 
         log.debug(f"[4/7] transpose done ({_ms(t)}ms): {source_tonic} -> {target_key}")
 
         t = time.monotonic()
-        warnings.extend(
-            await asyncio.to_thread(
-                validate_score, transposed, original_image=clean_image, request_id=request_id
-            )
+        t = time.monotonic()
+        warnings.extend(validate_score_rules(transposed))
+        
+        llm_val_warnings, vl_val_warnings = await asyncio.gather(
+            asyncio.to_thread(validate_score_with_llm, transposed, request_id),
+            asyncio.to_thread(validate_score_with_vision, transposed, clean_image, request_id),
         )
+        warnings.extend(llm_val_warnings)
+        warnings.extend(vl_val_warnings)
         log.debug(f"[5/7] validate done ({_ms(t)}ms), warnings={len(warnings)}")
 
         t = time.monotonic()
