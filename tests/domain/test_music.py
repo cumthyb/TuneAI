@@ -101,9 +101,9 @@ class TestExampleA:
         score = _make_score("G", _nat([5, 6, 1]))
         result = transpose_score_ir(score, "C")
         ev = result.events
-        assert ev[0].degree == 5
-        assert ev[1].degree == 6
-        assert ev[2].degree == 1
+        assert (ev[0].degree, ev[0].accidental, ev[0].octave_shift) == (1, "natural", 1)
+        assert (ev[1].degree, ev[1].accidental, ev[1].octave_shift) == (2, "natural", 1)
+        assert (ev[2].degree, ev[2].accidental, ev[2].octave_shift) == (4, "natural", 0)
 
     def test_octave_shift_preserved(self):
         score = _make_score("G", [(1, "natural", 1)])
@@ -121,19 +121,20 @@ class TestExampleB:
     def test_degree1_d_to_c(self):
         score = _make_score("D", _nat([1]))
         result = transpose_score_ir(score, "C")
-        assert result.events[0].degree == 1
+        ev = result.events[0]
+        assert (ev.degree, ev.accidental, ev.octave_shift) == (6, "sharp", -1)
 
     def test_degree3_d_to_c(self):
         score = _make_score("D", _nat([3]))
         result = transpose_score_ir(score, "C")
         ev = result.events[0]
-        assert ev.degree == 3
+        assert ev.degree == 2
         assert ev.accidental == "natural"
 
     def test_degree2_d_to_c(self):
         score = _make_score("D", _nat([2]))
         result = transpose_score_ir(score, "C")
-        assert result.events[0].degree == 2
+        assert result.events[0].degree == 1
 
 
 class TestEnharmonicSpelling:
@@ -149,13 +150,13 @@ class TestEnharmonicSpelling:
         score = _make_score("G", [(4, "sharp", 0)])
         result = transpose_score_ir(score, "C")
         ev = result.events[0]
-        assert ev.degree == 4 and ev.accidental == "sharp"
+        assert ev.degree == 7 and ev.accidental == "natural"
 
     def test_transpose_accidental_g_to_f_b5(self):
         score = _make_score("G", [(4, "sharp", 0)])
         result = transpose_score_ir(score, "F")
         ev = result.events[0]
-        assert ev.degree == 5 and ev.accidental == "flat"
+        assert ev.degree == 3 and ev.accidental == "natural"
 
 
 class TestOctaveBoundaryAccidentals:
@@ -171,7 +172,7 @@ class TestOctaveBoundaryAccidentals:
         score = _make_score("G", [(7, "sharp", 1)])
         result = transpose_score_ir(score, "C")
         ev = result.events[0]
-        assert ev.degree == 1
+        assert ev.degree == 4
         assert ev.octave_shift == 2
 
     def test_1flat_becomes_7_octave_down(self):

@@ -72,15 +72,16 @@ def _transpose_note(
     degree: int,
     accidental: str,
     octave_shift: int,
+    delta: int,
     prefer_sharps: bool,
 ) -> tuple[int, str, int]:
     if accidental not in ACCIDENTAL_DELTA:
         raise ValueError(f"unsupported accidental: {accidental}")
-    raw_offset = DEGREE_TO_SEMITONE[degree] + ACCIDENTAL_DELTA[accidental]
-    octave_adj = raw_offset // 12
-    enc = _SHARP_ENCODING if prefer_sharps else _FLAT_ENCODING
-    new_degree, new_acc = enc[raw_offset % 12]
-    return new_degree, new_acc, octave_shift + octave_adj
+    # Apply interval transposition in semitone space, then re-encode.
+    # This matches "transpose by key interval" semantics.
+    raw_offset = decode_note(degree, accidental, octave_shift)
+    shifted = raw_offset + delta
+    return encode_note(shifted, prefer_sharps)
 
 
 def count_accidentals(score: ScoreIR) -> int:
@@ -99,11 +100,16 @@ def shift_octave(score: ScoreIR, delta: int) -> ScoreIR:
 
 def transpose_score_ir(score: ScoreIR, target_key: str) -> ScoreIR:
     prefer_sharps = key_prefers_sharps(target_key)
+    delta = compute_transpose_delta(score.source_key.tonic, target_key)
     new_events = []
     for event in score.events:
         if isinstance(event, NoteEvent):
             new_degree, new_acc, new_oct = _transpose_note(
-                event.degree, event.accidental, event.octave_shift, prefer_sharps
+                event.degree,
+                event.accidental,
+                event.octave_shift,
+                delta,
+                prefer_sharps,
             )
             new_events.append(
                 event.model_copy(
