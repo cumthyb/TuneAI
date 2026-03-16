@@ -13,7 +13,14 @@ class TestRunOcr:
         runner = MagicMock(return_value=sample)
 
         with (
-            patch("tuneai.config.get_ocr_config", return_value={"provider": "aliyun", "config": {"k": "v"}}),
+            patch(
+                "tuneai.config.get_ocr_config",
+                return_value={
+                    "provider": "aliyun",
+                    "runners": {"aliyun": "tuneai.core.ocr.providers.aliyun:run_aliyun_ocr"},
+                    "providers": {"aliyun": {"k": "v"}},
+                },
+            ),
             patch("tuneai.core.ocr.get_ocr_runner", return_value=runner),
         ):
             result = run_ocr(np.zeros((10, 10), dtype=np.uint8))
@@ -23,7 +30,10 @@ class TestRunOcr:
 
     def test_unknown_provider_returns_empty(self):
         with (
-            patch("tuneai.config.get_ocr_config", return_value={"provider": "unknown", "config": {}}),
+            patch(
+                "tuneai.config.get_ocr_config",
+                return_value={"provider": "unknown", "runners": {}, "providers": {}},
+            ),
             patch("tuneai.core.ocr.get_ocr_runner", return_value=None),
         ):
             result = run_ocr(np.zeros((10, 10), dtype=np.uint8))
@@ -33,7 +43,14 @@ class TestRunOcr:
     def test_provider_exception_returns_empty(self):
         runner = MagicMock(side_effect=RuntimeError("boom"))
         with (
-            patch("tuneai.config.get_ocr_config", return_value={"provider": "aliyun", "config": {}}),
+            patch(
+                "tuneai.config.get_ocr_config",
+                return_value={
+                    "provider": "aliyun",
+                    "runners": {"aliyun": "tuneai.core.ocr.providers.aliyun:run_aliyun_ocr"},
+                    "providers": {"aliyun": {}},
+                },
+            ),
             patch("tuneai.core.ocr.get_ocr_runner", return_value=runner),
         ):
             result = run_ocr(np.zeros((10, 10), dtype=np.uint8))

@@ -23,11 +23,16 @@
   },
   "ocr": {
     "provider": "aliyun",
-    "config": {
-      "access_key_id": "",
-      "access_key_secret": "",
-      "endpoint": "ocr-api.cn-hangzhou.aliyuncs.com",
-      "timeout_seconds": 15
+    "runners": {
+      "aliyun": "tuneai.core.ocr.providers.aliyun:run_aliyun_ocr"
+    },
+    "providers": {
+      "aliyun": {
+        "access_key_id": "",
+        "access_key_secret": "",
+        "endpoint": "ocr-api.cn-hangzhou.aliyuncs.com",
+        "timeout_seconds": 15
+      }
     }
   },
   "pipeline": {

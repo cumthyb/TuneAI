@@ -39,14 +39,25 @@ def load_config() -> dict[str, Any]:
         cfg.setdefault("vision_llm", {})["api_key"] = key
     if key := os.getenv("TUNEAI_LLM_API_KEY"):
         cfg.setdefault("llm", {})["api_key"] = key
+
+    ocr_cfg = cfg.setdefault("ocr", {})
     if provider := os.getenv("TUNEAI_OCR_PROVIDER"):
-        cfg.setdefault("ocr", {})["provider"] = provider
+        ocr_cfg["provider"] = provider
+
+    active_provider = str(ocr_cfg.get("provider", "")).strip().lower()
+
+    if runner := os.getenv("TUNEAI_OCR_RUNNER"):
+        if active_provider:
+            ocr_cfg.setdefault("runners", {})[active_provider] = runner
     if key_id := os.getenv("TUNEAI_OCR_ACCESS_KEY_ID"):
-        cfg.setdefault("ocr", {}).setdefault("config", {})["access_key_id"] = key_id
+        if active_provider:
+            ocr_cfg.setdefault("providers", {}).setdefault(active_provider, {})["access_key_id"] = key_id
     if key_secret := os.getenv("TUNEAI_OCR_ACCESS_KEY_SECRET"):
-        cfg.setdefault("ocr", {}).setdefault("config", {})["access_key_secret"] = key_secret
+        if active_provider:
+            ocr_cfg.setdefault("providers", {}).setdefault(active_provider, {})["access_key_secret"] = key_secret
     if endpoint := os.getenv("TUNEAI_OCR_ENDPOINT"):
-        cfg.setdefault("ocr", {}).setdefault("config", {})["endpoint"] = endpoint
+        if active_provider:
+            ocr_cfg.setdefault("providers", {}).setdefault(active_provider, {})["endpoint"] = endpoint
     return cfg
 
 

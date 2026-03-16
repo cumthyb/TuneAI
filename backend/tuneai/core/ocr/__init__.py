@@ -20,12 +20,18 @@ def run_ocr(image: np.ndarray) -> list[OcrChar]:
     from tuneai.config import get_ocr_config
 
     cfg = get_ocr_config()
-    provider = str(cfg.get("provider", "aliyun")).strip().lower()
-    provider_cfg = cfg.get("config") or {}
+    provider = str(cfg.get("provider", "")).strip().lower()
+    runners_cfg = cfg.get("runners") or {}
+    providers_cfg = cfg.get("providers") or {}
+    provider_cfg = providers_cfg.get(provider) or {}
 
-    runner = get_ocr_runner(provider)
+    if not provider:
+        log.warning("ocr: provider 未配置，跳过 OCR")
+        return []
+
+    runner = get_ocr_runner(provider, runners_cfg)
     if runner is None:
-        log.warning(f"ocr: unsupported provider={provider!r}, 跳过 OCR")
+        log.warning(f"ocr: provider={provider!r} 未注册或 entrypoint 无效，跳过 OCR")
         return []
 
     try:
