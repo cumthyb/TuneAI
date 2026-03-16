@@ -36,7 +36,7 @@ export default function App() {
       
       {/* 顶部霓虹发光条 */}
       <div className="relative h-1 w-full overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500" />
+        <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 via-violet-500 to-purple-600" />
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent animate-[shimmer_2s_infinite]" />
       </div>
 
@@ -66,9 +66,9 @@ export default function App() {
       <div className="relative flex-1 px-4 py-6 sm:px-6 lg:px-8 xl:px-10">
         {/* 主区科技感装饰层 */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(6,182,212,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(139,92,246,0.05)_1px,transparent_1px)] bg-[size:48px_48px] [mask-image:radial-gradient(ellipse_at_center,black_45%,transparent_85%)]" />
-          <div className="absolute -left-24 top-10 h-72 w-72 rounded-full bg-cyan-500/15 blur-3xl" />
-          <div className="absolute -right-24 bottom-0 h-72 w-72 rounded-full bg-purple-500/15 blur-3xl" />
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(99,102,241,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(139,92,246,0.05)_1px,transparent_1px)] bg-[size:48px_48px] [mask-image:radial-gradient(ellipse_at_center,black_45%,transparent_85%)]" />
+          <div className="absolute -left-24 top-10 h-72 w-72 rounded-full bg-indigo-500/15 blur-3xl" />
+          <div className="absolute -right-24 bottom-0 h-72 w-72 rounded-full bg-violet-500/15 blur-3xl" />
         </div>
 
         <div className="relative grid w-full grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">

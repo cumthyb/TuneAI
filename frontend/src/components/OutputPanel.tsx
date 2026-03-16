@@ -13,7 +13,7 @@ interface OutputPanelProps {
   onRetry: () => void
 }
 
-const labelBase = 'shrink-0 border-b border-purple-500/20 px-4 py-3 text-sm font-semibold tracking-wide'
+const labelBase = 'shrink-0 border-b border-violet-500/20 px-4 py-3 text-sm font-semibold tracking-wide'
 
 export default function OutputPanel({ pageState, onRetry }: OutputPanelProps) {
   const [viewMode, setViewMode] = useState<'image' | 'json'>('image')
@@ -24,10 +24,10 @@ export default function OutputPanel({ pageState, onRetry }: OutputPanelProps) {
   return (
     <div className="ai-card flex flex-col overflow-hidden rounded-2xl lg:min-h-[60vh] neon-box">
       {/* 标题栏 */}
-      <div className={`${labelBase} flex items-center justify-between bg-gradient-to-r from-purple-500/10 via-purple-500/5 to-transparent text-purple-200`}>
+      <div className={`${labelBase} flex items-center justify-between bg-gradient-to-r from-violet-500/10 via-violet-500/5 to-transparent text-violet-200`}>
         <div className="flex items-center gap-3">
-          <div className="flex h-6 w-6 items-center justify-center rounded bg-purple-500/20">
-            <svg className="h-4 w-4 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="flex h-6 w-6 items-center justify-center rounded bg-violet-500/20">
+            <svg className="h-4 w-4 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z" />
             </svg>
           </div>
@@ -39,7 +39,7 @@ export default function OutputPanel({ pageState, onRetry }: OutputPanelProps) {
             <button
               type="button"
               onClick={() => setViewMode(prev => prev === 'image' ? 'json' : 'image')}
-              className="inline-flex items-center gap-1.5 rounded border border-purple-500/30 bg-slate-900/60 px-2 py-1 text-[10px] font-medium text-purple-300 transition-all hover:border-purple-400/50 hover:bg-purple-500/10"
+              className="inline-flex items-center gap-1.5 rounded border border-violet-500/30 bg-slate-900/60 px-2 py-1 text-[10px] font-medium text-violet-300 transition-all hover:border-violet-400/50 hover:bg-violet-500/10"
             >
               {viewMode === 'image' ? (
                 <>
@@ -58,23 +58,23 @@ export default function OutputPanel({ pageState, onRetry }: OutputPanelProps) {
               )}
             </button>
           )}
-          <span className="font-mono text-xs text-purple-500/40">AI GEN</span>
+          <span className="font-mono text-xs text-violet-500/40">AI GEN</span>
         </div>
       </div>
 
       {/* 内容区域 */}
       <div className="relative flex min-h-[320px] flex-1 flex-col bg-slate-950/50">
-        <div className="absolute left-2 top-2 h-3 w-3 border-l border-t border-purple-500/30" />
-        <div className="absolute right-2 top-2 h-3 w-3 border-r border-t border-purple-500/30" />
-        <div className="absolute bottom-2 left-2 h-3 w-3 border-b border-l border-purple-500/30" />
-        <div className="absolute bottom-2 right-2 h-3 w-3 border-b border-r border-purple-500/30" />
+        <div className="absolute left-2 top-2 h-3 w-3 border-l border-t border-violet-500/30" />
+        <div className="absolute right-2 top-2 h-3 w-3 border-r border-t border-violet-500/30" />
+        <div className="absolute bottom-2 left-2 h-3 w-3 border-b border-l border-violet-500/30" />
+        <div className="absolute bottom-2 right-2 h-3 w-3 border-b border-r border-violet-500/30" />
 
         {pageState.status === 'idle' && (
-          <div className="flex flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-cyan-500/20 bg-slate-900/30 p-8 text-center">
+          <div className="flex flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-indigo-500/20 bg-slate-900/30 p-8 text-center">
             <div className="mb-4 relative">
-              <div className="absolute inset-0 rounded-full bg-cyan-500/20 blur-xl animate-pulse" />
-              <div className="relative rounded-full border border-cyan-500/30 bg-cyan-950/50 p-4">
-                <svg className="h-8 w-8 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="absolute inset-0 rounded-full bg-indigo-500/20 blur-xl animate-pulse" />
+              <div className="relative rounded-full border border-indigo-500/30 bg-indigo-950/50 p-4">
+                <svg className="h-8 w-8 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
               </div>
@@ -88,11 +88,11 @@ export default function OutputPanel({ pageState, onRetry }: OutputPanelProps) {
           <div className="flex flex-1 flex-col items-center justify-center p-8">
             <LoadingState message="AI 处理中…" />
             <div className="mt-6 flex flex-col items-center gap-2">
-              <div className="flex items-center gap-2 font-mono text-xs text-cyan-500/60">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-400" />
+              <div className="flex items-center gap-2 font-mono text-xs text-indigo-500/60">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-indigo-400" />
                 ANALYZING PATTERN
               </div>
-              <div className="h-px w-32 bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent" />
+              <div className="h-px w-32 bg-gradient-to-r from-transparent via-indigo-500/30 to-transparent" />
               <div className="font-mono text-[10px] text-slate-600">NEURAL NETWORK: ACTIVE</div>
             </div>
           </div>

@@ -55,7 +55,7 @@ export default function TechBackground() {
         {particles.map((p, i) => (
           <div
             key={i}
-            className="absolute h-1 w-1 rounded-full bg-cyan-400/30 animate-[pulse_3s_ease-in-out_infinite]"
+            className="absolute h-1 w-1 rounded-full bg-indigo-400/30 animate-[pulse_3s_ease-in-out_infinite]"
             style={{
               left: p.left,
               top: p.top,
@@ -66,19 +66,19 @@ export default function TechBackground() {
       </div>
 
       {/* 角落装饰 - 科技边框 */}
-      <div className="absolute left-4 top-20 h-20 w-px bg-gradient-to-b from-cyan-500/50 to-transparent" />
-      <div className="absolute left-4 top-20 h-px w-20 bg-gradient-to-r from-cyan-500/50 to-transparent" />
-      
-      <div className="absolute bottom-20 right-4 h-20 w-px bg-gradient-to-t from-purple-500/50 to-transparent" />
-      <div className="absolute bottom-20 right-4 h-px w-20 bg-gradient-to-l from-purple-500/50 to-transparent" />
+      <div className="absolute left-4 top-20 h-20 w-px bg-gradient-to-b from-indigo-500/50 to-transparent" />
+      <div className="absolute left-4 top-20 h-px w-20 bg-gradient-to-r from-indigo-500/50 to-transparent" />
+
+      <div className="absolute bottom-20 right-4 h-20 w-px bg-gradient-to-t from-violet-500/50 to-transparent" />
+      <div className="absolute bottom-20 right-4 h-px w-20 bg-gradient-to-l from-violet-500/50 to-transparent" />
 
       {/* 数据流装饰线 */}
       <div className="absolute left-1/4 top-0 h-full w-px overflow-hidden">
-        <div className="h-20 w-full animate-[dataflow_4s_linear_infinite] bg-gradient-to-b from-transparent via-cyan-500/20 to-transparent" />
+        <div className="h-20 w-full animate-[dataflow_4s_linear_infinite] bg-gradient-to-b from-transparent via-indigo-500/20 to-transparent" />
       </div>
       <div className="absolute right-1/3 top-0 h-full w-px overflow-hidden">
-        <div 
-          className="h-20 w-full animate-[dataflow_5s_linear_infinite] bg-gradient-to-b from-transparent via-purple-500/20 to-transparent"
+        <div
+          className="h-20 w-full animate-[dataflow_5s_linear_infinite] bg-gradient-to-b from-transparent via-violet-500/20 to-transparent"
           style={{ animationDelay: '2s' }}
         />
       </div>

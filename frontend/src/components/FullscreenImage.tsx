@@ -48,7 +48,7 @@ export default function FullscreenImage({ src, alt, className }: FullscreenImage
       <button
         type="button"
         onClick={toggleFullscreen}
-        className="absolute right-4 top-4 z-50 inline-flex items-center gap-2 rounded-lg border border-cyan-500/30 bg-slate-900/90 px-3 py-2 text-xs font-medium text-cyan-300 opacity-0 shadow-lg backdrop-blur-sm transition-all duration-300 hover:border-cyan-400/50 hover:bg-slate-800 hover:text-cyan-200 group-hover:opacity-100"
+        className="absolute right-4 top-4 z-50 inline-flex items-center gap-2 rounded-lg border border-indigo-500/30 bg-slate-900/90 px-3 py-2 text-xs font-medium text-indigo-300 opacity-0 shadow-lg backdrop-blur-sm transition-all duration-300 hover:border-indigo-400/50 hover:bg-slate-800 hover:text-indigo-200 group-hover:opacity-100"
         title={isFullscreen ? '退出全屏 (Esc)' : '全屏查看'}
       >
         {isFullscreen ? (
