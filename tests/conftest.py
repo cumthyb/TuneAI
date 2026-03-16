@@ -26,6 +26,15 @@ SAMPLES_DIR = ROOT / "data" / "samples"
 SAMPLE_IMAGE_PATH = SAMPLES_DIR / "匆匆那年.png"
 
 
+def pytest_addoption(parser):
+    parser.addoption(
+        "--run-integration",
+        action="store_true",
+        default=False,
+        help="run integration tests with real OCR/LLM providers",
+    )
+
+
 # ---------------------------------------------------------------------------
 # 基础 fixture
 # ---------------------------------------------------------------------------

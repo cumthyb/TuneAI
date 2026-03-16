@@ -8,26 +8,37 @@
     "dev_port": 5173
   },
   "vision_llm": {
+    "provider": "qwen",
     "api_key": "",
-    "base_url": "https://your-openai-compatible-endpoint/v1",
-    "model": "your-vision-model",
-    "timeout_seconds": 30
+    "base_url": "",
+    "model": "qwen-vl-max",
+    "timeout_seconds": 30,
+    "client_class": "langchain_openai.ChatOpenAI",
+    "client_kwargs": {},
+    "model_kwargs": {},
+    "extra_body": {}
   },
   "llm": {
-    "base_url": "https://your-openai-compatible-endpoint/v1",
+    "provider": "qwen",
+    "base_url": "",
     "api_key": "",
-    "model": "your-text-model",
+    "model": "qwen-plus",
     "temperature": 0.1,
     "max_tokens": 1024,
-    "timeout_seconds": 30
+    "timeout_seconds": 30,
+    "client_class": "langchain_openai.ChatOpenAI",
+    "client_kwargs": {},
+    "model_kwargs": {},
+    "extra_body": {},
+    "disable_parallel_tool_calls": false
   },
   "ocr": {
-    "provider": "aliyun",
+    "provider": "qwen",
     "runners": {
-      "aliyun": "tuneai.core.ocr.providers.aliyun:run_aliyun_ocr"
+      "qwen": "tuneai.core.adapters.ocr.providers.qwen:run_qwen_ocr"
     },
     "providers": {
-      "aliyun": {
+      "qwen": {
         "access_key_id": "",
         "access_key_secret": "",
         "endpoint": "ocr-api.cn-hangzhou.aliyuncs.com",

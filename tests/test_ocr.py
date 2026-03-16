@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 
-from tuneai.core.ocr import OcrChar, run_ocr
+from tuneai.core.adapters.ocr import OcrChar, run_ocr
 
 
 class TestRunOcr:
@@ -16,12 +16,12 @@ class TestRunOcr:
             patch(
                 "tuneai.config.get_ocr_config",
                 return_value={
-                    "provider": "aliyun",
-                    "runners": {"aliyun": "tuneai.core.ocr.providers.aliyun:run_aliyun_ocr"},
-                    "providers": {"aliyun": {"k": "v"}},
+                    "provider": "qwen",
+                    "runners": {"qwen": "tuneai.core.adapters.ocr.providers.qwen:run_qwen_ocr"},
+                    "providers": {"qwen": {"k": "v"}},
                 },
             ),
-            patch("tuneai.core.ocr.get_ocr_runner", return_value=runner),
+            patch("tuneai.core.adapters.ocr.get_ocr_runner", return_value=runner),
         ):
             result = run_ocr(np.zeros((10, 10), dtype=np.uint8))
 
@@ -34,7 +34,7 @@ class TestRunOcr:
                 "tuneai.config.get_ocr_config",
                 return_value={"provider": "unknown", "runners": {}, "providers": {}},
             ),
-            patch("tuneai.core.ocr.get_ocr_runner", return_value=None),
+            patch("tuneai.core.adapters.ocr.get_ocr_runner", return_value=None),
         ):
             result = run_ocr(np.zeros((10, 10), dtype=np.uint8))
 
@@ -46,12 +46,12 @@ class TestRunOcr:
             patch(
                 "tuneai.config.get_ocr_config",
                 return_value={
-                    "provider": "aliyun",
-                    "runners": {"aliyun": "tuneai.core.ocr.providers.aliyun:run_aliyun_ocr"},
-                    "providers": {"aliyun": {}},
+                    "provider": "qwen",
+                    "runners": {"qwen": "tuneai.core.adapters.ocr.providers.qwen:run_qwen_ocr"},
+                    "providers": {"qwen": {}},
                 },
             ),
-            patch("tuneai.core.ocr.get_ocr_runner", return_value=runner),
+            patch("tuneai.core.adapters.ocr.get_ocr_runner", return_value=runner),
         ):
             result = run_ocr(np.zeros((10, 10), dtype=np.uint8))
 

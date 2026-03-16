@@ -6,5 +6,5 @@ from dataclasses import dataclass
 @dataclass
 class OcrChar:
     text: str
-    bbox: list[int]  # [x, y, w, h]
+    bbox: list[int]
     confidence: float

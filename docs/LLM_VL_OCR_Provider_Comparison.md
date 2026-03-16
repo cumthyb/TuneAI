@@ -124,7 +124,7 @@
     "timeout_seconds": 30
   },
   "ocr": {
-    "provider": "aliyun",
+    "provider": "qwen",
     "config": {
       "access_key_id": "YOUR_ALIYUN_ACCESS_KEY_ID",
       "access_key_secret": "YOUR_ALIYUN_ACCESS_KEY_SECRET",
@@ -165,5 +165,5 @@
 }
 ```
 
-> 说明：示例 B 的 `ocr.provider = "bigmodel_vlm_ocr"` 代表目标接入形态；若当前代码尚未实现该 provider，可先临时使用 `aliyun`，待 provider 实现后无缝切换。
+> 说明：示例 B 的 `ocr.provider = "bigmodel_vlm_ocr"` 代表目标接入形态；若当前代码尚未实现该 provider，可先临时使用 `qwen`，待 provider 实现后无缝切换。
 

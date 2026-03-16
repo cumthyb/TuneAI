@@ -39,6 +39,18 @@ def load_config() -> dict[str, Any]:
         cfg.setdefault("vision_llm", {})["api_key"] = key
     if key := os.getenv("TUNEAI_LLM_API_KEY"):
         cfg.setdefault("llm", {})["api_key"] = key
+    if provider := os.getenv("TUNEAI_LLM_PROVIDER"):
+        cfg.setdefault("llm", {})["provider"] = provider
+    if provider := os.getenv("TUNEAI_VISION_LLM_PROVIDER"):
+        cfg.setdefault("vision_llm", {})["provider"] = provider
+    if base_url := os.getenv("TUNEAI_LLM_BASE_URL"):
+        cfg.setdefault("llm", {})["base_url"] = base_url
+    if base_url := os.getenv("TUNEAI_VISION_LLM_BASE_URL"):
+        cfg.setdefault("vision_llm", {})["base_url"] = base_url
+    if model := os.getenv("TUNEAI_LLM_MODEL"):
+        cfg.setdefault("llm", {})["model"] = model
+    if model := os.getenv("TUNEAI_VISION_LLM_MODEL"):
+        cfg.setdefault("vision_llm", {})["model"] = model
 
     ocr_cfg = cfg.setdefault("ocr", {})
     if provider := os.getenv("TUNEAI_OCR_PROVIDER"):

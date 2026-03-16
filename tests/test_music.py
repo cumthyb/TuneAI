@@ -5,7 +5,7 @@ import pytest
 
 # conftest.py 已将 backend 加入 sys.path
 
-from tuneai.core.music import (
+from tuneai.core.domain.music import (
     compute_transpose_delta,
     decode_note,
     encode_note,
