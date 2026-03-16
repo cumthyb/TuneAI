@@ -11,15 +11,10 @@ class TestRunOcr:
         runner = MagicMock(return_value=sample)
 
         with (
-            patch(
-                "tuneai.config.get_ocr_config",
-                return_value={
-                    "provider": "qwen",
-                    "runners": {"qwen": "tuneai.core.adapters.ocr.providers.qwen:run_qwen_ocr"},
-                    "providers": {"qwen": {"k": "v"}},
-                },
-            ),
+            patch("tuneai.core.adapters.ocr.get_default_provider", return_value="qwen"),
+            patch("tuneai.core.adapters.ocr.get_ocr_config", return_value={"runner": "pkg.mod:run", "k": "v"}),
             patch("tuneai.core.adapters.ocr.get_ocr_runner", return_value=runner),
+            patch("tuneai.core.adapters.ocr.get_provider_overrides", return_value=(None, None, None)),
         ):
             result = run_ocr(sample_image_array)
 
@@ -28,11 +23,10 @@ class TestRunOcr:
 
     def test_unknown_provider_returns_empty(self, sample_image_array):
         with (
-            patch(
-                "tuneai.config.get_ocr_config",
-                return_value={"provider": "unknown", "runners": {}, "providers": {}},
-            ),
+            patch("tuneai.core.adapters.ocr.get_default_provider", return_value="unknown"),
+            patch("tuneai.core.adapters.ocr.get_ocr_config", return_value={"runner": ""}),
             patch("tuneai.core.adapters.ocr.get_ocr_runner", return_value=None),
+            patch("tuneai.core.adapters.ocr.get_provider_overrides", return_value=(None, None, None)),
         ):
             result = run_ocr(sample_image_array)
 
@@ -41,15 +35,21 @@ class TestRunOcr:
     def test_provider_exception_returns_empty(self, sample_image_array):
         runner = MagicMock(side_effect=RuntimeError("boom"))
         with (
-            patch(
-                "tuneai.config.get_ocr_config",
-                return_value={
-                    "provider": "qwen",
-                    "runners": {"qwen": "tuneai.core.adapters.ocr.providers.qwen:run_qwen_ocr"},
-                    "providers": {"qwen": {}},
-                },
-            ),
+            patch("tuneai.core.adapters.ocr.get_default_provider", return_value="qwen"),
+            patch("tuneai.core.adapters.ocr.get_ocr_config", return_value={"runner": "pkg.mod:run"}),
             patch("tuneai.core.adapters.ocr.get_ocr_runner", return_value=runner),
+            patch("tuneai.core.adapters.ocr.get_provider_overrides", return_value=(None, None, None)),
+        ):
+            result = run_ocr(sample_image_array)
+
+        assert result == []
+
+    def test_provider_override_missing_runner_returns_empty(self, sample_image_array):
+        with (
+            patch("tuneai.core.adapters.ocr.get_default_provider", return_value="qwen"),
+            patch("tuneai.core.adapters.ocr.get_ocr_config", return_value={"runner": ""}),
+            patch("tuneai.core.adapters.ocr.get_ocr_runner", return_value=None),
+            patch("tuneai.core.adapters.ocr.get_provider_overrides", return_value=(None, None, "glm")),
         ):
             result = run_ocr(sample_image_array)
 

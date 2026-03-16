@@ -48,6 +48,14 @@ export type TransposeResponse = TransposeSuccessResponse | TransposeErrorRespons
 export interface ApiMetaResponse {
   allowed_image_types: string[]
   max_image_size_mb: number
+  providers: string[]
+  default_provider: string
+  llm_providers: string[]
+  vision_llm_providers: string[]
+  ocr_providers: string[]
+  default_llm_provider: string
+  default_vision_llm_provider: string
+  default_ocr_provider: string
 }
 
 export interface Warning {

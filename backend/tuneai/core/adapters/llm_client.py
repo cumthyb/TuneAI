@@ -3,6 +3,14 @@ from __future__ import annotations
 import importlib
 from typing import Any
 
+from tuneai.core.adapters.provider_context import get_provider_overrides
+from tuneai.config import (
+    get_default_provider,
+    get_llm_config as get_llm_config_from_registry,
+    get_vision_llm_config as get_vision_llm_config_from_registry,
+    list_registered_providers,
+)
+
 
 _PROVIDER_PRESETS: dict[str, dict[str, str]] = {
     # DashScope OpenAI-compatible endpoint for Qwen series.
@@ -35,6 +43,23 @@ def _resolved_base_url(cfg: dict[str, Any]) -> str | None:
     return _PROVIDER_PRESETS.get(provider, {}).get("base_url")
 
 
+def list_supported_providers() -> list[str]:
+    return list_registered_providers()
+
+
+def _apply_provider_override(cfg: dict[str, Any], provider: str | None) -> dict[str, Any]:
+    if not provider:
+        return cfg
+    next_cfg = dict(cfg)
+    target = str(provider).strip().lower()
+    current = str(cfg.get("provider") or "").strip().lower()
+    next_cfg["provider"] = target
+    # 切换供应商时，优先使用目标供应商预设 base_url，避免沿用旧供应商地址。
+    if current and current != target and cfg.get("base_url"):
+        next_cfg["base_url"] = ""
+    return next_cfg
+
+
 def build_chat_openai(
     cfg: dict[str, Any],
     *,
@@ -64,12 +89,16 @@ def build_chat_openai(
 
 
 def get_text_llm_config() -> dict[str, Any]:
-    from tuneai.config import get_llm_config
-
-    return get_llm_config()
+    text_override, _, _ = get_provider_overrides()
+    provider = text_override or get_default_provider()
+    cfg = dict(get_llm_config_from_registry(provider))
+    cfg["provider"] = provider
+    return _apply_provider_override(cfg, provider)
 
 
 def get_vision_llm_config() -> dict[str, Any]:
-    from tuneai.config import get_vision_llm_config
-
-    return get_vision_llm_config()
+    _, vision_override, _ = get_provider_overrides()
+    provider = vision_override or get_default_provider()
+    cfg = dict(get_vision_llm_config_from_registry(provider))
+    cfg["provider"] = provider
+    return _apply_provider_override(cfg, provider)

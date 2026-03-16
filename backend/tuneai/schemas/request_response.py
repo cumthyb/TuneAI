@@ -31,3 +31,11 @@ class TransposeErrorResponse(BaseModel):
 class ApiMetaResponse(BaseModel):
     allowed_image_types: list[str]
     max_image_size_mb: int
+    providers: list[str] = []
+    default_provider: str = ""
+    llm_providers: list[str] = []
+    vision_llm_providers: list[str] = []
+    ocr_providers: list[str] = []
+    default_llm_provider: str = ""
+    default_vision_llm_provider: str = ""
+    default_ocr_provider: str = ""

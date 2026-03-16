@@ -50,7 +50,7 @@ export default function FullscreenImage({
     }
     const requestFs = el.requestFullscreen?.bind(el) ?? (el as HTMLDivElement & { webkitRequestFullscreen?: () => Promise<void> }).webkitRequestFullscreen?.bind(el)
     if (doc.fullscreenElement ?? doc.webkitFullscreenElement) {
-      ;(doc.exitFullscreen ?? doc.webkitExitFullscreen)?.()
+      (doc.exitFullscreen ?? doc.webkitExitFullscreen)?.()
     } else if (requestFs) {
       void requestFs()
     }

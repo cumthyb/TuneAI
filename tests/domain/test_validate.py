@@ -12,7 +12,7 @@ class TestValidate:
             target_key=KeyInfo(label="1=X", tonic="X"),
             events=[],
         )
-        with patch("tuneai.config.get_llm_config", return_value={}):
+        with patch("tuneai.core.domain.validate.get_text_llm_config", return_value={}):
             warnings = validate_score(score, original_image=None)
         types = {w.type for w in warnings}
         assert "INVALID_KEY" in types
@@ -26,6 +26,6 @@ class TestValidate:
             target_key=KeyInfo(label="1=G", tonic="G"),
             events=[NoteEvent(id="n1", degree=1, accidental="natural", octave_shift=0, confidence=0.2)],
         )
-        with patch("tuneai.config.get_llm_config", return_value={}):
+        with patch("tuneai.core.domain.validate.get_text_llm_config", return_value={}):
             warnings = validate_score(score, original_image=None)
         assert any(w.type == "low_confidence" for w in warnings)

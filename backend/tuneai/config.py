@@ -1,13 +1,13 @@
 """
-从 config.json 加载配置：端口、API Key、LLM、OCR、流水线、日志等。
-优先使用项目根目录的 config.json，不存在则用 config.example.json；敏感项可由环境变量覆盖。
+配置中心：仅支持新的 providers 注册表格式（不兼容旧格式）。
 """
+from __future__ import annotations
+
 import json
 import os
 from pathlib import Path
 from typing import Any
 
-# 项目根目录（backend/tuneai/config.py -> 根目录）
 _CONFIG_DIR = Path(__file__).resolve().parent.parent.parent
 
 
@@ -24,10 +24,36 @@ def _find_config() -> Path:
     raise FileNotFoundError(f"未找到 config.json 或 config.example.json，目录: {_CONFIG_DIR}")
 
 
+def _provider_entry(cfg: dict[str, Any], provider: str) -> dict[str, Any]:
+    providers = cfg.get("providers")
+    if not isinstance(providers, dict):
+        raise ValueError("providers must be an object")
+    if provider not in providers:
+        raise ValueError(f"provider is not registered: {provider}")
+    entry = providers.get(provider)
+    if not isinstance(entry, dict):
+        raise ValueError(f"provider entry must be an object: {provider}")
+    return entry
+
+
+def _overlay_provider_section(
+    cfg: dict[str, Any],
+    *,
+    provider: str,
+    section: str,
+    updates: dict[str, Any],
+) -> None:
+    entry = _provider_entry(cfg, provider)
+    section_cfg = entry.setdefault(section, {})
+    if not isinstance(section_cfg, dict):
+        section_cfg = {}
+        entry[section] = section_cfg
+    section_cfg.update({k: v for k, v in updates.items() if v is not None})
+
+
 def load_config() -> dict[str, Any]:
-    path = _find_config()
-    cfg = _load_json(path)
-    # 环境变量覆盖
+    cfg = _load_json(_find_config())
+
     if port := os.getenv("TUNEAI_PORT"):
         try:
             cfg.setdefault("server", {})["port"] = int(port)
@@ -35,45 +61,61 @@ def load_config() -> dict[str, Any]:
             pass
     if level := os.getenv("TUNEAI_LOG_LEVEL"):
         cfg.setdefault("logging", {})["level"] = level
-    if key := os.getenv("TUNEAI_VISION_LLM_API_KEY"):
-        cfg.setdefault("vision_llm", {})["api_key"] = key
+
+    policy = cfg.get("provider_policy")
+    if not isinstance(policy, dict):
+        raise ValueError("provider_policy must be an object")
+    default_provider = str(policy.get("default_provider") or "").strip().lower()
+    policy["default_provider"] = default_provider
+
+    env_provider = os.getenv("TUNEAI_PROVIDER")
+    if env_provider:
+        default_provider = env_provider.strip().lower()
+        policy["default_provider"] = default_provider
+
+    if not default_provider:
+        raise ValueError("default_provider must be explicitly configured")
+
+    providers = cfg.get("providers")
+    if not isinstance(providers, dict):
+        raise ValueError("providers must be an object")
+    if default_provider not in providers:
+        raise ValueError(f"default_provider is not registered: {default_provider}")
+
+    text_provider = (os.getenv("TUNEAI_LLM_PROVIDER") or default_provider).strip().lower()
+    vision_provider = (os.getenv("TUNEAI_VISION_LLM_PROVIDER") or default_provider).strip().lower()
+    ocr_provider = (os.getenv("TUNEAI_OCR_PROVIDER") or default_provider).strip().lower()
+
     if key := os.getenv("TUNEAI_LLM_API_KEY"):
-        cfg.setdefault("llm", {})["api_key"] = key
-    if provider := os.getenv("TUNEAI_LLM_PROVIDER"):
-        cfg.setdefault("llm", {})["provider"] = provider
-    if provider := os.getenv("TUNEAI_VISION_LLM_PROVIDER"):
-        cfg.setdefault("vision_llm", {})["provider"] = provider
+        _overlay_provider_section(cfg, provider=text_provider, section="llm", updates={"api_key": key})
     if base_url := os.getenv("TUNEAI_LLM_BASE_URL"):
-        cfg.setdefault("llm", {})["base_url"] = base_url
-    if base_url := os.getenv("TUNEAI_VISION_LLM_BASE_URL"):
-        cfg.setdefault("vision_llm", {})["base_url"] = base_url
+        _overlay_provider_section(cfg, provider=text_provider, section="llm", updates={"base_url": base_url})
     if model := os.getenv("TUNEAI_LLM_MODEL"):
-        cfg.setdefault("llm", {})["model"] = model
+        _overlay_provider_section(cfg, provider=text_provider, section="llm", updates={"model": model})
+
+    if key := os.getenv("TUNEAI_VISION_LLM_API_KEY"):
+        _overlay_provider_section(cfg, provider=vision_provider, section="vision_llm", updates={"api_key": key})
+    if base_url := os.getenv("TUNEAI_VISION_LLM_BASE_URL"):
+        _overlay_provider_section(cfg, provider=vision_provider, section="vision_llm", updates={"base_url": base_url})
     if model := os.getenv("TUNEAI_VISION_LLM_MODEL"):
-        cfg.setdefault("vision_llm", {})["model"] = model
+        _overlay_provider_section(cfg, provider=vision_provider, section="vision_llm", updates={"model": model})
 
-    ocr_cfg = cfg.setdefault("ocr", {})
-    if provider := os.getenv("TUNEAI_OCR_PROVIDER"):
-        ocr_cfg["provider"] = provider
+    ocr_updates = {
+        "runner": os.getenv("TUNEAI_OCR_RUNNER"),
+        "access_key_id": os.getenv("TUNEAI_OCR_ACCESS_KEY_ID"),
+        "access_key_secret": os.getenv("TUNEAI_OCR_ACCESS_KEY_SECRET"),
+        "endpoint": os.getenv("TUNEAI_OCR_ENDPOINT"),
+    }
+    if any(v is not None for v in ocr_updates.values()):
+        _overlay_provider_section(cfg, provider=ocr_provider, section="ocr", updates=ocr_updates)
 
-    active_provider = str(ocr_cfg.get("provider", "")).strip().lower()
+    for provider_name, entry in providers.items():
+        if not isinstance(entry, dict):
+            raise ValueError(f"provider entry must be an object: {provider_name}")
 
-    if runner := os.getenv("TUNEAI_OCR_RUNNER"):
-        if active_provider:
-            ocr_cfg.setdefault("runners", {})[active_provider] = runner
-    if key_id := os.getenv("TUNEAI_OCR_ACCESS_KEY_ID"):
-        if active_provider:
-            ocr_cfg.setdefault("providers", {}).setdefault(active_provider, {})["access_key_id"] = key_id
-    if key_secret := os.getenv("TUNEAI_OCR_ACCESS_KEY_SECRET"):
-        if active_provider:
-            ocr_cfg.setdefault("providers", {}).setdefault(active_provider, {})["access_key_secret"] = key_secret
-    if endpoint := os.getenv("TUNEAI_OCR_ENDPOINT"):
-        if active_provider:
-            ocr_cfg.setdefault("providers", {}).setdefault(active_provider, {})["endpoint"] = endpoint
     return cfg
 
 
-# 单例，首次访问时加载
 _config: dict[str, Any] | None = None
 
 
@@ -84,24 +126,51 @@ def get_config() -> dict[str, Any]:
     return _config
 
 
-def get_server_host() -> str:
-    return get_config().get("server", {}).get("host", "0.0.0.0")
+def get_provider_policy() -> dict[str, Any]:
+    policy = get_config().get("provider_policy")
+    if not isinstance(policy, dict):
+        raise ValueError("provider_policy must be an object")
+    return policy
 
 
-def get_server_port() -> int:
-    return get_config().get("server", {}).get("port", 8000)
+def get_default_provider() -> str:
+    provider = str(get_provider_policy().get("default_provider") or "").strip().lower()
+    if not provider:
+        raise ValueError("default_provider must be explicitly configured")
+    if provider not in get_providers_config():
+        raise ValueError(f"default_provider is not registered: {provider}")
+    return provider
 
 
-def get_vision_llm_config() -> dict[str, Any]:
-    return get_config().get("vision_llm", {})
+def get_providers_config() -> dict[str, Any]:
+    providers = get_config().get("providers")
+    if not isinstance(providers, dict):
+        raise ValueError("providers must be an object")
+    return providers
 
 
-def get_llm_config() -> dict[str, Any]:
-    return get_config().get("llm", {})
+def list_registered_providers() -> list[str]:
+    providers = [str(k).strip().lower() for k in get_providers_config().keys() if str(k).strip()]
+    return sorted(set(providers))
 
 
-def get_ocr_config() -> dict[str, Any]:
-    return get_config().get("ocr", {})
+def get_provider_config(provider: str | None = None) -> dict[str, Any]:
+    selected = (provider or get_default_provider()).strip().lower()
+    providers = get_providers_config()
+    raw = providers.get(selected, {})
+    return raw if isinstance(raw, dict) else {}
+
+
+def get_llm_config(provider: str | None = None) -> dict[str, Any]:
+    return get_provider_config(provider).get("llm", {}) or {}
+
+
+def get_vision_llm_config(provider: str | None = None) -> dict[str, Any]:
+    return get_provider_config(provider).get("vision_llm", {}) or {}
+
+
+def get_ocr_config(provider: str | None = None) -> dict[str, Any]:
+    return get_provider_config(provider).get("ocr", {}) or {}
 
 
 def get_pipeline_config() -> dict[str, Any]:
@@ -114,6 +183,14 @@ def get_logging_config() -> dict[str, Any]:
 
 def get_frontend_config() -> dict[str, Any]:
     return get_config().get("frontend", {})
+
+
+def get_server_host() -> str:
+    return get_config().get("server", {}).get("host", "0.0.0.0")
+
+
+def get_server_port() -> int:
+    return get_config().get("server", {}).get("port", 8000)
 
 
 def get_frontend_mode() -> str:

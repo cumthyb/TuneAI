@@ -76,8 +76,7 @@ class _LLMValidationResult(BaseModel):
 
 def _llm_validate(score: ScoreIR, request_id: str) -> list[Warning]:
     log = get_logger("validate")
-    from tuneai.config import get_llm_config
-    if not get_llm_config().get("api_key"):
+    if not get_text_llm_config().get("api_key"):
         log.debug("[validate] llm api_key 未配置，跳过文本校验")
         return []
     sample = [

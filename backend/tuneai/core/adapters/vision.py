@@ -16,7 +16,7 @@ _PROMPT = (
     "只回答调号本身，例如：1=G\n"
     "如果无法确认，回答：unknown"
 )
-_llm_instance = None
+_llm_instances: dict[tuple[str, str, str], object] = {}
 
 
 def _create_llm():
@@ -31,10 +31,16 @@ def _create_llm():
 
 
 def _get_llm():
-    global _llm_instance
-    if _llm_instance is None:
-        _llm_instance = _create_llm()
-    return _llm_instance
+    cfg = get_vision_llm_config()
+    provider = str(cfg.get("provider") or "").strip().lower()
+    model = str(cfg.get("model") or "vision-model")
+    base_url = str(cfg.get("base_url") or "")
+    key = (provider, model, base_url)
+    llm = _llm_instances.get(key)
+    if llm is None:
+        llm = _create_llm()
+        _llm_instances[key] = llm
+    return llm
 
 
 def recognize_key_signature(image: np.ndarray) -> str:

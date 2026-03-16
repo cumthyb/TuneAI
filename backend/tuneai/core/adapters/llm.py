@@ -31,7 +31,7 @@ class PitchAssessmentResult(BaseModel):
     notes: str = Field(default="", description="补充说明")
 
 
-_llm_instance = None
+_llm_instances: dict[tuple[str, str, str], object] = {}
 _KEY_RE = re.compile(r"1\s*[=＝一]\s*([A-G][#b♯♭]?)")
 
 
@@ -47,10 +47,16 @@ def _create_llm():
 
 
 def _get_llm():
-    global _llm_instance
-    if _llm_instance is None:
-        _llm_instance = _create_llm()
-    return _llm_instance
+    cfg = get_text_llm_config()
+    provider = str(cfg.get("provider") or "").strip().lower()
+    model = str(cfg.get("model") or "text-model")
+    base_url = str(cfg.get("base_url") or "")
+    key = (provider, model, base_url)
+    llm = _llm_instances.get(key)
+    if llm is None:
+        llm = _create_llm()
+        _llm_instances[key] = llm
+    return llm
 
 
 def _structured(schema: type[BaseModel]):

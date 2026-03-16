@@ -9,6 +9,8 @@ export default function App() {
   const {
     selectedFile,
     targetKey,
+    providerOptions,
+    selectedProvider,
     controlError,
     pageState,
     serviceStatus,
@@ -16,6 +18,7 @@ export default function App() {
     isSuccess,
     leftImageUrl,
     setTargetKey,
+    setSelectedProvider,
     handleFileChange,
     handleSubmit,
     handleRetry,
@@ -37,12 +40,15 @@ export default function App() {
       <Header
         selectedFile={selectedFile}
         targetKey={targetKey}
+        provider={selectedProvider}
+        providers={providerOptions.providers}
         controlError={controlError}
         isLoading={isLoading}
         systemOnline={serviceStatus.systemOnline}
         apiReady={serviceStatus.apiReady}
         isCheckingStatus={serviceStatus.isCheckingStatus}
         onTargetKeyChange={setTargetKey}
+        onProviderChange={setSelectedProvider}
         onSubmit={handleSubmit}
       />
 

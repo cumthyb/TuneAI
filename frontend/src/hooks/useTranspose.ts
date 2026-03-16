@@ -3,6 +3,7 @@ import type { ApiMetaResponse, ScoreJson, Warning, TargetKey, TransposeResponse 
 
 const DEFAULT_MAX_SIZE_MB = 20
 const DEFAULT_ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp']
+const DEFAULT_PROVIDERS = ['glm', 'qwen']
 
 type UploadRules = {
   allowedImageTypes: string[]
@@ -15,6 +16,13 @@ type ServiceStatus = {
   isCheckingStatus: boolean
 }
 
+const META_CONFIG_ERROR_MESSAGE =
+  '后端配置缺失或无效：请检查 config.json 中 provider_policy.default_provider 与 providers 配置'
+
+type ProviderOptions = {
+  providers: string[]
+}
+
 const logger = {
   error(message: string, payload?: Record<string, unknown>) {
     if (payload) {
@@ -25,10 +33,15 @@ const logger = {
   },
 }
 
-async function transpose(params: { image: File; targetKey: TargetKey }): Promise<TransposeResponse> {
+async function transpose(params: {
+  image: File
+  targetKey: TargetKey
+  provider: string
+}): Promise<TransposeResponse> {
   const formData = new FormData()
   formData.append('image', params.image)
   formData.append('target_key', params.targetKey)
+  if (params.provider) formData.append('provider', params.provider)
   const response = await fetch('/api/transpose', {
     method: 'POST',
     body: formData,
@@ -49,24 +62,25 @@ async function checkServiceStatus(): Promise<{
   systemOnline: boolean
   apiReady: boolean
   meta: ApiMetaResponse | null
+  errorMessage: string | null
 }> {
   try {
     const response = await fetch('/api/meta', { cache: 'no-store' })
     if (!response.ok) {
-      return { systemOnline: true, apiReady: false, meta: null }
+      return { systemOnline: true, apiReady: false, meta: null, errorMessage: META_CONFIG_ERROR_MESSAGE }
     }
     let data: unknown
     try {
       data = await response.json()
     } catch {
-      return { systemOnline: true, apiReady: false, meta: null }
+      return { systemOnline: true, apiReady: false, meta: null, errorMessage: META_CONFIG_ERROR_MESSAGE }
     }
     if (!isApiMetaResponse(data)) {
-      return { systemOnline: true, apiReady: false, meta: null }
+      return { systemOnline: true, apiReady: false, meta: null, errorMessage: META_CONFIG_ERROR_MESSAGE }
     }
-    return { systemOnline: true, apiReady: true, meta: data }
+    return { systemOnline: true, apiReady: true, meta: data, errorMessage: null }
   } catch {
-    return { systemOnline: false, apiReady: false, meta: null }
+    return { systemOnline: false, apiReady: false, meta: null, errorMessage: '无法连接后端服务，请确认服务已启动' }
   }
 }
 
@@ -96,6 +110,19 @@ function isApiMetaResponse(value: unknown): value is ApiMetaResponse {
   if (!value || typeof value !== 'object') return false
   const r = value as Record<string, unknown>
   return Array.isArray(r.allowed_image_types) && typeof r.max_image_size_mb === 'number'
+}
+
+function normalizeProviders(providers: unknown, defaults: string[]): string[] {
+  if (!Array.isArray(providers)) return defaults
+  const safe = providers
+    .filter((item): item is string => typeof item === 'string')
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean)
+  return safe.length > 0 ? Array.from(new Set(safe)) : defaults
+}
+
+function normalizeProviderValue(value: unknown): string {
+  return typeof value === 'string' ? value.trim().toLowerCase() : ''
 }
 
 function formatAllowedTypes(allowedImageTypes: string[]): string {
@@ -141,6 +168,7 @@ export function useTranspose() {
   const [selectedPreviewUrl, setSelectedPreviewUrl] = useState<string | null>(null)
   const [targetKey, setTargetKey] = useState<TargetKey>('C')
   const [controlError, setControlError] = useState<string | null>(null)
+  const [serviceError, setServiceError] = useState<string | null>(null)
   const [pageState, setPageState] = useState<PageState>({ status: 'idle' })
   const [uploadRules, setUploadRules] = useState<UploadRules>({
     allowedImageTypes: DEFAULT_ALLOWED_IMAGE_TYPES,
@@ -151,24 +179,41 @@ export function useTranspose() {
     apiReady: false,
     isCheckingStatus: true,
   })
+  const [providerOptions, setProviderOptions] = useState<ProviderOptions>({
+    providers: DEFAULT_PROVIDERS,
+  })
+  const [selectedProvider, setSelectedProvider] = useState<string>(DEFAULT_PROVIDERS[0])
 
   useEffect(() => {
     let cancelled = false
     let timer: number | null = null
     const loadRules = async () => {
       try {
-        const { systemOnline, apiReady, meta } = await checkServiceStatus()
+        const { systemOnline, apiReady, meta, errorMessage } = await checkServiceStatus()
         if (cancelled) return
         setServiceStatus({
           systemOnline,
           apiReady,
           isCheckingStatus: false,
         })
+        setServiceError(errorMessage)
         if (meta) {
           setUploadRules({
             allowedImageTypes:
               meta.allowed_image_types.length > 0 ? meta.allowed_image_types : DEFAULT_ALLOWED_IMAGE_TYPES,
             maxSizeMB: meta.max_image_size_mb > 0 ? meta.max_image_size_mb : DEFAULT_MAX_SIZE_MB,
+          })
+          const providers = normalizeProviders(meta.providers, DEFAULT_PROVIDERS)
+          const defaultProvider = normalizeProviderValue(meta.default_provider)
+
+          setProviderOptions({
+            providers,
+          })
+
+          setSelectedProvider((prev) => {
+            if (prev && providers.includes(prev)) return prev
+            if (defaultProvider && providers.includes(defaultProvider)) return defaultProvider
+            return providers[0]
           })
         }
       } catch (err) {
@@ -233,7 +278,11 @@ export function useTranspose() {
     if (!selectedFile || !selectedPreviewUrl) return
     setPageState({ status: 'loading', previewUrl: selectedPreviewUrl })
     try {
-      const res = await transpose({ image: selectedFile, targetKey })
+      const res = await transpose({
+        image: selectedFile,
+        targetKey,
+        provider: selectedProvider,
+      })
       if (res.success) {
         setPageState({
           status: 'success',
@@ -257,7 +306,7 @@ export function useTranspose() {
       logger.error('transpose fetch failed', { error: message })
       setPageState({ status: 'error', error: message })
     }
-  }, [selectedFile, selectedPreviewUrl, targetKey])
+  }, [selectedFile, selectedPreviewUrl, targetKey, selectedProvider])
 
   const handleRetry = useCallback(() => {
     setPageState({ status: 'idle' })
@@ -282,9 +331,11 @@ export function useTranspose() {
     selectedFile,
     selectedPreviewUrl,
     targetKey,
-    controlError,
+    controlError: controlError ?? serviceError,
     pageState,
     serviceStatus,
+    providerOptions,
+    selectedProvider,
     
     // 计算属性
     isLoading,
@@ -293,6 +344,7 @@ export function useTranspose() {
     
     // 操作方法
     setTargetKey,
+    setSelectedProvider,
     handleFileChange,
     handleSubmit,
     handleRetry,

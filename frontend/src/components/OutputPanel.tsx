@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { ScoreJson, Warning } from '../types/api'
+import type { ScoreJson } from '../types/api'
 import LoadingState from './LoadingState'
 import FullscreenImage from './FullscreenImage'
 import ScoreView from './ScoreView'

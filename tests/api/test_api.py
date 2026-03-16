@@ -1,6 +1,7 @@
 """API contract tests for current error semantics."""
 
 import asyncio
+import contextlib
 import io
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -148,3 +149,65 @@ class TestSuccessResponse:
         )
         assert resp.status_code == 200
         assert resp.json()["request_id"] == "req_custom_abc"
+
+
+class TestProviderRouting:
+    def test_meta_returns_provider_lists(self, client):
+        with (
+            patch("tuneai.api.routes._list_providers_with_llm", return_value=["glm", "qwen"]),
+            patch("tuneai.api.routes._list_providers_with_vision_llm", return_value=["glm"]),
+            patch("tuneai.api.routes._list_providers_with_ocr", return_value=["qwen"]),
+            patch("tuneai.api.routes.get_default_provider", return_value="glm"),
+        ):
+            resp = client.get("/api/meta")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["providers"] == ["glm", "qwen"]
+        assert body["llm_providers"] == ["glm", "qwen"]
+        assert body["vision_llm_providers"] == ["glm"]
+        assert body["ocr_providers"] == ["qwen"]
+        assert body["default_provider"] == "glm"
+        assert body["default_llm_provider"] == "glm"
+        assert body["default_vision_llm_provider"] == "glm"
+        assert body["default_ocr_provider"] == "qwen"
+
+    def test_invalid_unified_provider_returns_400(self, client, minimal_png_bytes):
+        with (
+            patch("tuneai.api.routes._list_providers_with_llm", return_value=["glm", "qwen"]),
+            patch("tuneai.api.routes._list_providers_with_vision_llm", return_value=["glm", "qwen"]),
+            patch("tuneai.api.routes._list_providers_with_ocr", return_value=["qwen"]),
+        ):
+            resp = client.post(
+                "/api/transpose",
+                files={"image": ("score.png", io.BytesIO(minimal_png_bytes), "image/png")},
+                data={"target_key": "C", "provider": "glm"},
+            )
+        assert resp.status_code == 400
+        assert resp.json()["error_code"] == "INVALID_OCR_PROVIDER"
+
+    def test_unified_provider_passes_into_provider_overrides(self, client, minimal_png_bytes):
+        seen: dict[str, str | None] = {}
+
+        @contextlib.contextmanager
+        def _capture(**kwargs):
+            seen.update(kwargs)
+            yield
+
+        with (
+            patch("tuneai.api.routes._list_providers_with_llm", return_value=["glm"]),
+            patch("tuneai.api.routes._list_providers_with_vision_llm", return_value=["glm"]),
+            patch("tuneai.api.routes._list_providers_with_ocr", return_value=["glm"]),
+            patch("tuneai.api.routes.provider_overrides", side_effect=lambda **kw: _capture(**kw)),
+        ):
+            resp = client.post(
+                "/api/transpose",
+                files={"image": ("score.png", io.BytesIO(minimal_png_bytes), "image/png")},
+                data={"target_key": "C", "provider": "glm"},
+            )
+
+        assert resp.status_code == 200
+        assert seen == {
+            "llm_provider": "glm",
+            "vision_llm_provider": "glm",
+            "ocr_provider": "glm",
+        }

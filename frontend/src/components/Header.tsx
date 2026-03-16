@@ -5,24 +5,30 @@ import type { TargetKey } from '../types/api'
 interface HeaderProps {
   selectedFile: File | null
   targetKey: TargetKey
+  provider: string
+  providers: string[]
   controlError: string | null
   isLoading: boolean
   systemOnline: boolean
   apiReady: boolean
   isCheckingStatus: boolean
   onTargetKeyChange: (key: TargetKey) => void
+  onProviderChange: (provider: string) => void
   onSubmit: () => void
 }
 
 export default function Header({
   selectedFile,
   targetKey,
+  provider,
+  providers,
   controlError,
   isLoading,
   systemOnline,
   apiReady,
   isCheckingStatus,
   onTargetKeyChange,
+  onProviderChange,
   onSubmit,
 }: HeaderProps) {
   const systemDotClass = systemOnline ? 'bg-emerald-400' : 'bg-rose-400'
@@ -78,7 +84,10 @@ export default function Header({
         <ControlBar
           file={selectedFile}
           targetKey={targetKey}
+          provider={provider}
+          providers={providers}
           onTargetKeyChange={onTargetKeyChange}
+          onProviderChange={onProviderChange}
           onSubmit={onSubmit}
           disabled={isLoading}
           error={controlError}
