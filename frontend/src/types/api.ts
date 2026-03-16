@@ -45,6 +45,11 @@ export interface TransposeErrorResponse {
 
 export type TransposeResponse = TransposeSuccessResponse | TransposeErrorResponse
 
+export interface ApiMetaResponse {
+  allowed_image_types: string[]
+  max_image_size_mb: number
+}
+
 export interface Warning {
   type: string
   measure?: number

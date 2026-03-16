@@ -48,6 +48,7 @@
   },
   "pipeline": {
     "request_timeout_seconds": 60,
+    "max_image_size_mb": 20,
     "outputs_dir": "data/outputs",
     "samples_dir": "data/samples",
     "cleanup_after_response": true

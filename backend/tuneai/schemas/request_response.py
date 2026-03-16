@@ -26,3 +26,8 @@ class TransposeErrorResponse(BaseModel):
     error_code: str
     error_message: str
     request_id: str
+
+
+class ApiMetaResponse(BaseModel):
+    allowed_image_types: list[str]
+    max_image_size_mb: int

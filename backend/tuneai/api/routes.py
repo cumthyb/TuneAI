@@ -14,6 +14,7 @@ from tuneai.core.domain.music import validate_target_key
 from tuneai.core.infra.storage import cleanup
 from tuneai.logging_config import bind_request_id, reset_request_id, get_logger
 from tuneai.schemas.request_response import (
+    ApiMetaResponse,
     TransposeErrorResponse,
     TransposeSuccessResponse,
 )
@@ -21,6 +22,16 @@ from tuneai.schemas.request_response import (
 router = APIRouter()
 
 _ALLOWED_CONTENT_TYPES = {"image/png", "image/jpeg", "image/jpg", "image/webp"}
+_ALLOWED_FORMAT_HINT = "PNG、JPG 或 WEBP"
+_DEFAULT_MAX_IMAGE_SIZE_MB = 20
+
+
+@router.get("/meta", response_model=ApiMetaResponse)
+def get_api_meta() -> ApiMetaResponse:
+    return ApiMetaResponse(
+        allowed_image_types=sorted(_ALLOWED_CONTENT_TYPES),
+        max_image_size_mb=_get_max_image_size_mb(),
+    )
 
 
 @router.post(
@@ -52,7 +63,7 @@ async def transpose(
             return _error_response(
                 status_code=415,
                 error_code="INVALID_IMAGE_FORMAT",
-                error_message=f"不支持的图片格式: {ct}。请上传 PNG 或 JPG 图片。",
+                error_message=f"不支持的图片格式: {ct}。请上传 {_ALLOWED_FORMAT_HINT} 图片。",
                 request_id=request_id,
             )
 
@@ -62,6 +73,14 @@ async def transpose(
                 status_code=400,
                 error_code="EMPTY_IMAGE",
                 error_message="上传的图片为空",
+                request_id=request_id,
+            )
+        max_image_size_mb = _get_max_image_size_mb()
+        if len(image_bytes) > max_image_size_mb * 1024 * 1024:
+            return _error_response(
+                status_code=413,
+                error_code="IMAGE_TOO_LARGE",
+                error_message=f"图片大小不能超过 {max_image_size_mb}MB",
                 request_id=request_id,
             )
 
@@ -116,3 +135,12 @@ def _error_response(
         request_id=request_id,
     )
     return JSONResponse(status_code=status_code, content=payload.model_dump())
+
+
+def _get_max_image_size_mb() -> int:
+    raw_value = get_pipeline_config().get("max_image_size_mb", _DEFAULT_MAX_IMAGE_SIZE_MB)
+    try:
+        value = int(raw_value)
+    except (TypeError, ValueError):
+        return _DEFAULT_MAX_IMAGE_SIZE_MB
+    return value if value > 0 else _DEFAULT_MAX_IMAGE_SIZE_MB

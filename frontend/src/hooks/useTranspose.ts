@@ -1,14 +1,101 @@
 import { useCallback, useEffect, useState } from 'react'
-import { transpose } from '../lib/api'
-import { logger } from '../lib/logger'
-import type { ScoreJson, Warning, TargetKey } from '../types/api'
+import type { ApiMetaResponse, ScoreJson, Warning, TargetKey, TransposeResponse } from '../types/api'
 
-const MAX_SIZE_MB = 20
+const DEFAULT_MAX_SIZE_MB = 20
+const DEFAULT_ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp']
 
-function validateFile(f: File): string | null {
-  const okType = ['image/png', 'image/jpeg', 'image/jpg'].some((t) => f.type === t)
-  if (!okType) return '请上传 PNG 或 JPG 图片'
-  if (f.size > MAX_SIZE_MB * 1024 * 1024) return `图片大小不超过 ${MAX_SIZE_MB}MB`
+type UploadRules = {
+  allowedImageTypes: string[]
+  maxSizeMB: number
+}
+
+const logger = {
+  error(message: string, payload?: Record<string, unknown>) {
+    if (payload) {
+      console.error(`[tuneai] ${message}`, payload)
+      return
+    }
+    console.error(`[tuneai] ${message}`)
+  },
+}
+
+async function transpose(params: { image: File; targetKey: TargetKey }): Promise<TransposeResponse> {
+  const formData = new FormData()
+  formData.append('image', params.image)
+  formData.append('target_key', params.targetKey)
+  const response = await fetch('/api/transpose', {
+    method: 'POST',
+    body: formData,
+  })
+  let data: unknown
+  try {
+    data = await response.json()
+  } catch {
+    throw new Error(`请求失败（HTTP ${response.status}）：服务器返回非 JSON`)
+  }
+  if (!isTransposeResponse(data)) {
+    throw new Error(`请求失败（HTTP ${response.status}）：返回数据格式不正确`)
+  }
+  return data
+}
+
+async function fetchApiMeta(): Promise<ApiMetaResponse | null> {
+  const response = await fetch('/api/meta')
+  if (!response.ok) return null
+  let data: unknown
+  try {
+    data = await response.json()
+  } catch {
+    return null
+  }
+  if (!isApiMetaResponse(data)) return null
+  return data
+}
+
+function isTransposeResponse(value: unknown): value is TransposeResponse {
+  if (!value || typeof value !== 'object') return false
+  const r = value as Record<string, unknown>
+  if (r.success === true) {
+    return (
+      typeof r.output_image === 'string' &&
+      typeof r.processing_time_ms === 'number' &&
+      typeof r.request_id === 'string' &&
+      Array.isArray(r.warnings) &&
+      r.score_json !== undefined
+    )
+  }
+  if (r.success === false) {
+    return (
+      typeof r.error_code === 'string' &&
+      typeof r.error_message === 'string' &&
+      typeof r.request_id === 'string'
+    )
+  }
+  return false
+}
+
+function isApiMetaResponse(value: unknown): value is ApiMetaResponse {
+  if (!value || typeof value !== 'object') return false
+  const r = value as Record<string, unknown>
+  return Array.isArray(r.allowed_image_types) && typeof r.max_image_size_mb === 'number'
+}
+
+function formatAllowedTypes(allowedImageTypes: string[]): string {
+  const set = new Set(allowedImageTypes.map((t) => t.toLowerCase()))
+  const labels: string[] = []
+  if (set.has('image/png')) labels.push('PNG')
+  if (set.has('image/jpeg') || set.has('image/jpg')) labels.push('JPG')
+  if (set.has('image/webp')) labels.push('WEBP')
+  if (labels.length === 0) return '支持格式'
+  if (labels.length === 1) return labels[0]
+  if (labels.length === 2) return `${labels[0]} 或 ${labels[1]}`
+  return `${labels.slice(0, -1).join('、')} 或 ${labels[labels.length - 1]}`
+}
+
+function validateFile(f: File, rules: UploadRules): string | null {
+  const okType = rules.allowedImageTypes.includes(f.type)
+  if (!okType) return `请上传 ${formatAllowedTypes(rules.allowedImageTypes)} 图片`
+  if (f.size > rules.maxSizeMB * 1024 * 1024) return `图片大小不超过 ${rules.maxSizeMB}MB`
   return null
 }
 
@@ -37,6 +124,32 @@ export function useTranspose() {
   const [targetKey, setTargetKey] = useState<TargetKey>('C')
   const [controlError, setControlError] = useState<string | null>(null)
   const [pageState, setPageState] = useState<PageState>({ status: 'idle' })
+  const [uploadRules, setUploadRules] = useState<UploadRules>({
+    allowedImageTypes: DEFAULT_ALLOWED_IMAGE_TYPES,
+    maxSizeMB: DEFAULT_MAX_SIZE_MB,
+  })
+
+  useEffect(() => {
+    let cancelled = false
+    const loadRules = async () => {
+      try {
+        const meta = await fetchApiMeta()
+        if (!meta || cancelled) return
+        setUploadRules({
+          allowedImageTypes:
+            meta.allowed_image_types.length > 0 ? meta.allowed_image_types : DEFAULT_ALLOWED_IMAGE_TYPES,
+          maxSizeMB: meta.max_image_size_mb > 0 ? meta.max_image_size_mb : DEFAULT_MAX_SIZE_MB,
+        })
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'unknown error'
+        logger.error('load api meta failed', { error: message })
+      }
+    }
+    loadRules()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   // 为选中的文件维护 object URL，清除时 revoke
   useEffect(() => {
@@ -64,14 +177,14 @@ export function useTranspose() {
       setSelectedFile(null)
       return
     }
-    const err = validateFile(file)
+    const err = validateFile(file, uploadRules)
     if (err) {
       setControlError(err)
       setSelectedFile(null)
       return
     }
     setSelectedFile(file)
-  }, [])
+  }, [uploadRules])
 
   const handleSubmit = useCallback(async () => {
     if (!selectedFile || !selectedPreviewUrl) return
