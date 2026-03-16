@@ -832,7 +832,7 @@ TuneAI/
   tests/
     test_pipeline.py         # 端到端测试
     test_music.py            # 音高计算单元测试
-  run.py                     # 开发服务器入口
+  backend/run.py             # 后端启动入口（--mode dev/prod）
   pyproject.toml             # Poetry 管理 Python 依赖
 ```
 
@@ -842,6 +842,8 @@ TuneAI/
 - 临时存储处理中间结果，完成后清理
 - 前端为 **React + Tailwind CSS**，**Vite** 构建；生产部署时后端托管 `frontend/dist`（方案 A 单端口）
 - 前后端统一使用 `request_id` 串联日志，便于调试
+- 运行入口统一：`make dev`（后端开发）、`make prod`（后端生产）、`make web`（前端开发）
+- 入口边界明确：`Makefile` 作为团队统一入口；`backend/run.py` 作为后端启动实现，默认不直接手动调用
 
 ## 12. 开发里程碑
 

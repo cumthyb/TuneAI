@@ -39,6 +39,12 @@
 
 ## 本地运行
 
+### 入口约定（必须遵守）
+
+- 面向开发者的统一入口是 `Makefile`：日常启动、测试、构建只使用 `make ...`
+- `backend/run.py` 保留为后端启动实现，不作为团队日常手动入口
+- 仅在调试启动参数或排查 `Makefile` 本身时，才直接执行 `python backend/run.py --mode ...`
+
 ### 1. 安装 Python 依赖（Poetry）
 
 ```bash
@@ -54,8 +60,10 @@ cd frontend && npm install && npm run build && cd ..
 ### 3. 启动后端（托管前端构建产物与 API，单端口）
 
 ```bash
-poetry run python run.py
-# 或：poetry run uvicorn tuneai.main:app --reload
+# 开发模式（启用 reload）
+make dev
+# 生产模式（关闭 reload）
+make prod
 ```
 
 访问配置的端口（默认 8000）即可使用上传页与 API。
@@ -63,7 +71,7 @@ poetry run python run.py
 ### 前端开发（热更新，单独端口）
 
 ```bash
-cd frontend && npm run dev
+make web
 # Vite 开发服务器端口由 config.json 的 frontend.dev_port 决定（默认 5173），/api 已代理到后端 server.port
 ```
 

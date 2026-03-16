@@ -2,19 +2,21 @@
 # 用法: make <target>
 #
 # 快速启动：
-#   make dev       启动前端开发服务器（Vite, port 5173）
-#   make backend   启动后端 API 服务器（uvicorn, port 8000）
+#   make dev       启动后端开发服务器（reload on）
+#   make prod      启动后端生产服务器（reload off）
 #   make test      运行所有单元测试（OCR/LLM/Music/API/Pipeline 均 mock 外部引擎）
 #
 # 其他：
+#   make web       启动前端开发服务器（Vite, port 5173）
 #   make install   安装所有依赖（前端 npm + 后端 poetry）
 #   make build     构建前端产物（frontend/dist）
 #   make test-int  运行集成测试（需要真实 OCR 模型 + LLM 服务）
 #   make lint      检查前端代码风格
 #   make help      显示此帮助
 
-.PHONY: help dev backend test test-int install build lint
+.PHONY: help dev prod web test test-int install build lint
 # Note: $(VENV)/bin/python is intentionally NOT .PHONY — Make uses it as a file sentinel
+.DEFAULT_GOAL := help
 
 # 使用项目内 .venv（Python 3.12）
 VENV    := .venv
@@ -22,8 +24,11 @@ PYTHON  := $(VENV)/bin/python
 PYTEST  := $(VENV)/bin/pytest
 POETRY  := $(VENV)/bin/poetry
 
-BACKEND_DIR := backend
 FRONTEND_DIR := frontend
+RUN_ENTRY := backend/run.py
+
+# 统一后端导入路径：run.py / pytest 都依赖 tuneai 包
+export PYTHONPATH := backend
 
 # ── 默认目标 ────────────────────────────────────────────────────────────────
 
@@ -31,8 +36,9 @@ help:
 	@echo ""
 	@echo "  TuneAI 命令入口"
 	@echo ""
-	@echo "  make dev        启动前端开发服务器  (Vite  → http://localhost:5173)"
-	@echo "  make backend    启动后端 API 服务器  (uvicorn → http://localhost:8000)"
+	@echo "  make dev        启动后端开发服务器  (uvicorn + reload → http://localhost:8000)"
+	@echo "  make prod       启动后端生产服务器  (uvicorn no-reload → http://localhost:8000)"
+	@echo "  make web        启动前端开发服务器  (Vite → http://localhost:5173)"
 	@echo "  make test       运行所有单元测试     (外部引擎均 mock，无需 OCR 模型/LLM 服务)"
 	@echo "  make test-int   运行集成测试         (需要真实 OCR 模型 + LLM 服务)"
 	@echo "  make install    安装所有依赖         (前端 npm + 后端 poetry)"
@@ -43,13 +49,18 @@ help:
 # ── 启动 ────────────────────────────────────────────────────────────────────
 
 dev:
+	@echo "→ 启动后端开发服务器 (http://localhost:8000, reload=on) ..."
+	@echo "  文档: http://localhost:8000/docs"
+	$(PYTHON) $(RUN_ENTRY) --mode dev
+
+prod:
+	@echo "→ 启动后端生产服务器 (http://localhost:8000, reload=off) ..."
+	@echo "  文档: http://localhost:8000/docs"
+	$(PYTHON) $(RUN_ENTRY) --mode prod
+
+web:
 	@echo "→ 启动前端开发服务器 (http://localhost:5173) ..."
 	cd $(FRONTEND_DIR) && npm run dev
-
-backend:
-	@echo "→ 启动后端 API 服务器 (http://localhost:8000) ..."
-	@echo "  文档: http://localhost:8000/docs"
-	PYTHONPATH=$(BACKEND_DIR) $(PYTHON) run.py
 
 # ── 测试 ────────────────────────────────────────────────────────────────────
 
@@ -57,12 +68,12 @@ backend:
 # 涵盖：tests/ 下按模块目录组织的全部单测
 test:
 	@echo "→ 运行单元测试（外部引擎均 mock）..."
-	PYTHONPATH=$(BACKEND_DIR) $(PYTEST) tests/ -v
+	$(PYTEST) tests/ -v
 
 # 集成测试：需要本地 OCR 模型已下载 + LLM 服务可访问
 test-int:
 	@echo "→ 运行集成测试（需要真实 OCR 模型 + LLM 服务）..."
-	PYTHONPATH=$(BACKEND_DIR) $(PYTEST) tests/ --run-integration -v
+	$(PYTEST) tests/ --run-integration -v
 
 # ── 安装 / 构建 ─────────────────────────────────────────────────────────────
 
