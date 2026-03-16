@@ -1,16 +1,12 @@
 from __future__ import annotations
 
-import numpy as np
-
+from tuneai.core.domain.music import KEY_TO_PC
 from tuneai.logging_config import get_logger
 from tuneai.schemas.request_response import Warning
 from tuneai.schemas.score_ir import NoteEvent, ScoreIR
 
 _LOW_CONF_THRESHOLD = 0.7
-_VALID_TONICS = {
-    "C", "C#", "Db", "D", "D#", "Eb", "E",
-    "F", "F#", "Gb", "G", "G#", "Ab", "A", "A#", "Bb", "B",
-}
+_VALID_TONICS = set(KEY_TO_PC.keys())
 
 
 def validate_score_rules(score: ScoreIR) -> list[Warning]:

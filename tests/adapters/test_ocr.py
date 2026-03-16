@@ -1,62 +1,40 @@
-"""OCR 模块单元测试（provider/factory 架构）。"""
+"""OCR 模块单元测试。"""
 
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from tuneai.core.adapters.ocr import OcrChar, run_ocr
-from tuneai.core.adapters.ocr.factory import get_ocr_runner
 
 
 class TestRunOcr:
-    def test_supported_provider_calls_runner(self, sample_image_array):
+    def test_calls_multimodal_with_provider_config(self, sample_image_array):
         sample = [OcrChar(text="1", bbox=[10, 20, 30, 40], confidence=0.9)]
-        runner = MagicMock(return_value=sample)
 
         with (
-            patch("tuneai.core.adapters.ocr.get_default_provider", return_value="qwen"),
-            patch("tuneai.core.adapters.ocr.get_ocr_config", return_value={"runner": "pkg.mod:run", "k": "v"}),
-            patch("tuneai.core.adapters.ocr.get_ocr_runner", return_value=runner),
-            patch("tuneai.core.adapters.ocr.get_provider_overrides", return_value=(None, None, None)),
+            patch("tuneai.core.adapters.ocr.get_ocr_config", return_value={"api_key": "k", "model": "m"}),
+            patch("tuneai.core.adapters.ocr.run_multimodal_ocr", return_value=sample) as mock_run,
         ):
-            result = run_ocr(sample_image_array)
+            result = run_ocr(sample_image_array, "qwen")
 
         assert result == sample
-        runner.assert_called_once()
+        mock_run.assert_called_once_with(
+            sample_image_array, {"api_key": "k", "model": "m"}, provider_label="qwen"
+        )
 
-    def test_unknown_provider_missing_runner_raises(self, sample_image_array):
+    def test_provider_label_matches_provider_arg(self, sample_image_array):
         with (
-            patch("tuneai.core.adapters.ocr.get_default_provider", return_value="unknown"),
-            patch("tuneai.core.adapters.ocr.get_ocr_config", return_value={"runner": ""}),
-            patch("tuneai.core.adapters.ocr.get_ocr_runner", return_value=None),
-            patch("tuneai.core.adapters.ocr.get_provider_overrides", return_value=(None, None, None)),
+            patch("tuneai.core.adapters.ocr.get_ocr_config", return_value={"api_key": "k"}),
+            patch("tuneai.core.adapters.ocr.run_multimodal_ocr", return_value=[]) as mock_run,
         ):
-            with pytest.raises(ValueError, match="ocr.runner must be a non-empty string"):
-                run_ocr(sample_image_array)
+            run_ocr(sample_image_array, "glm")
+
+        assert mock_run.call_args.kwargs["provider_label"] == "glm"
 
     def test_provider_exception_bubbles_up(self, sample_image_array):
-        runner = MagicMock(side_effect=RuntimeError("boom"))
         with (
-            patch("tuneai.core.adapters.ocr.get_default_provider", return_value="qwen"),
-            patch("tuneai.core.adapters.ocr.get_ocr_config", return_value={"runner": "pkg.mod:run"}),
-            patch("tuneai.core.adapters.ocr.get_ocr_runner", return_value=runner),
-            patch("tuneai.core.adapters.ocr.get_provider_overrides", return_value=(None, None, None)),
+            patch("tuneai.core.adapters.ocr.get_ocr_config", return_value={"api_key": "k"}),
+            patch("tuneai.core.adapters.ocr.run_multimodal_ocr", side_effect=RuntimeError("boom")),
         ):
             with pytest.raises(RuntimeError, match="boom"):
-                run_ocr(sample_image_array)
-
-    def test_provider_override_missing_runner_raises(self, sample_image_array):
-        with (
-            patch("tuneai.core.adapters.ocr.get_default_provider", return_value="qwen"),
-            patch("tuneai.core.adapters.ocr.get_ocr_config", return_value={"runner": ""}),
-            patch("tuneai.core.adapters.ocr.get_ocr_runner", return_value=None),
-            patch("tuneai.core.adapters.ocr.get_provider_overrides", return_value=(None, None, "glm")),
-        ):
-            with pytest.raises(ValueError, match="ocr.runner must be a non-empty string"):
-                run_ocr(sample_image_array)
-
-
-class TestOcrRunnerEntrypoints:
-    def test_legacy_alicloud_runner_entrypoint_is_not_supported(self):
-        with pytest.raises(ModuleNotFoundError):
-            get_ocr_runner("qwen", {"qwen": "tuneai.core.adapters.ocr.providers.alicloud:run_alicloud_ocr"})
+                run_ocr(sample_image_array, "qwen")

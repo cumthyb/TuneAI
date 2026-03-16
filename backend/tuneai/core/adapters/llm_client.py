@@ -3,9 +3,7 @@ from __future__ import annotations
 import importlib
 from typing import Any
 
-from tuneai.core.adapters.provider_context import get_provider_overrides
 from tuneai.config import (
-    get_default_provider,
     get_llm_config as get_llm_config_from_registry,
     get_vision_llm_config as get_vision_llm_config_from_registry,
     list_registered_providers,
@@ -52,15 +50,6 @@ def list_supported_providers() -> list[str]:
     return list_registered_providers()
 
 
-def _apply_provider_override(cfg: dict[str, Any], provider: str | None) -> dict[str, Any]:
-    if not provider:
-        return cfg
-    next_cfg = dict(cfg)
-    target = str(provider).strip().lower()
-    next_cfg["provider"] = target
-    return next_cfg
-
-
 def build_chat_openai(cfg: dict[str, Any]) -> Any:
     client_cls = _resolve_client_class(cfg)
     client_kwargs = _required_object(cfg, "client_kwargs")
@@ -84,21 +73,13 @@ def build_chat_openai(cfg: dict[str, Any]) -> Any:
     return client_cls(**kwargs)
 
 
-def get_text_llm_config() -> dict[str, Any]:
-    text_override, _, _ = get_provider_overrides()
-    provider = text_override.strip().lower() if isinstance(text_override, str) else ""
-    if not provider:
-        provider = get_default_provider()
+def get_text_llm_config(provider: str) -> dict[str, Any]:
     cfg = dict(get_llm_config_from_registry(provider))
     cfg["provider"] = provider
-    return _apply_provider_override(cfg, provider)
+    return cfg
 
 
-def get_vision_llm_config() -> dict[str, Any]:
-    _, vision_override, _ = get_provider_overrides()
-    provider = vision_override.strip().lower() if isinstance(vision_override, str) else ""
-    if not provider:
-        provider = get_default_provider()
+def get_vision_llm_config(provider: str) -> dict[str, Any]:
     cfg = dict(get_vision_llm_config_from_registry(provider))
     cfg["provider"] = provider
-    return _apply_provider_override(cfg, provider)
+    return cfg

@@ -22,14 +22,8 @@ _PROMPT = (
 _llm_instances: dict[tuple[str, str, str], object] = {}
 
 
-def _create_llm():
-    cfg = get_vision_llm_config()
-    return build_chat_openai(cfg)
-
-
-def _get_llm():
-    cfg = get_vision_llm_config()
-    provider = str(cfg.get("provider")).strip().lower()
+def _get_llm(provider: str):
+    cfg = get_vision_llm_config(provider)
     model = str(cfg.get("model")).strip()
     base_url = str(cfg.get("base_url")).strip()
     if not provider or not model or not base_url:
@@ -37,13 +31,13 @@ def _get_llm():
     key = (provider, model, base_url)
     llm = _llm_instances.get(key)
     if llm is None:
-        llm = _create_llm()
+        llm = build_chat_openai(cfg)
         _llm_instances[key] = llm
     return llm
 
 
-def recognize_key_signature(image: np.ndarray) -> str:
-    cfg = get_vision_llm_config()
+def recognize_key_signature(image: np.ndarray, provider: str) -> str:
+    cfg = get_vision_llm_config(provider)
     api_key = cfg.get("api_key")
     if not isinstance(api_key, str) or not api_key.strip():
         raise ValueError("vision_llm.api_key must be configured")
@@ -51,7 +45,7 @@ def recognize_key_signature(image: np.ndarray) -> str:
     b64 = base64.b64encode(buf.tobytes()).decode()
     from langchain_core.messages import HumanMessage
 
-    llm = _get_llm()
+    llm = _get_llm(provider)
     message = HumanMessage(
         content=[
             {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}"}},
@@ -95,9 +89,9 @@ _VL_VALIDATE_PROMPT = (
 )
 
 
-def validate_score_with_vision(score: ScoreIR, original_image: np.ndarray, request_id: str) -> list[Warning]:
+def validate_score_with_vision(score: ScoreIR, original_image: np.ndarray, request_id: str, provider: str) -> list[Warning]:
     log = get_logger("validate_vision")
-    cfg = get_vision_llm_config()
+    cfg = get_vision_llm_config(provider)
     api_key = cfg.get("api_key")
     if not isinstance(api_key, str) or not api_key.strip():
         raise ValueError("vision_llm.api_key must be configured for validate_score")
@@ -105,7 +99,7 @@ def validate_score_with_vision(score: ScoreIR, original_image: np.ndarray, reque
     b64 = base64.b64encode(buf.tobytes()).decode()
     prompt = _VL_VALIDATE_PROMPT.format(source_key=score.source_key.tonic, target_key=score.target_key.tonic)
     from langchain_core.messages import HumanMessage
-    llm = _get_llm()
+    llm = _get_llm(provider)
     chain = llm.with_structured_output(VLValidationResult, method="function_calling")
     message = HumanMessage(
         content=[

@@ -7,8 +7,6 @@ import pytest
 from tuneai.core.adapters.llm import (
     KeyCorrectionResult,
     MeasureCorrectionResult,
-    PitchAssessmentResult,
-    assess_pitch_range,
     correct_key_signature,
     correct_low_confidence_events,
 )
@@ -24,12 +22,12 @@ def _make_structured_mock(return_value):
 class TestCorrectKeySignature:
     def test_empty_raw_text_raises(self):
         with pytest.raises(ValueError, match="raw_text must be non-empty"):
-            correct_key_signature("", "ctx", "req")
+            correct_key_signature("", "ctx", "req", "qwen")
 
     def test_returns_llm_result(self):
         expected = KeyCorrectionResult(tonic="G", label="1=G", confidence=0.95, notes="ok")
         with patch("tuneai.core.adapters.llm._structured", return_value=_make_structured_mock(expected)):
-            result = correct_key_signature("1=G", "ctx", "req")
+            result = correct_key_signature("1=G", "ctx", "req", "qwen")
         assert result.tonic == "G"
         assert result.confidence == pytest.approx(0.95)
 
@@ -38,7 +36,7 @@ class TestCorrectKeySignature:
         chain.invoke.side_effect = RuntimeError("boom")
         with patch("tuneai.core.adapters.llm._structured", return_value=chain):
             with pytest.raises(RuntimeError, match="boom"):
-                correct_key_signature("1=D", "ctx", "req")
+                correct_key_signature("1=D", "ctx", "req", "qwen")
 
 
 class TestCorrectLowConfidenceEvents:
@@ -46,7 +44,7 @@ class TestCorrectLowConfidenceEvents:
         tokens = [{"id": "n0", "type": "note", "degree": 1, "accidental": "natural", "confidence": 0.9}]
         expected = MeasureCorrectionResult(events=tokens, confidence=0.92, notes="ok")
         with patch("tuneai.core.adapters.llm._structured", return_value=_make_structured_mock(expected)):
-            result = correct_low_confidence_events(tokens, "C", "req")
+            result = correct_low_confidence_events(tokens, "C", "req", "qwen")
         assert result.confidence == pytest.approx(0.92)
 
     def test_exception_bubbles_up(self):
@@ -55,7 +53,7 @@ class TestCorrectLowConfidenceEvents:
         chain.invoke.side_effect = TimeoutError("timeout")
         with patch("tuneai.core.adapters.llm._structured", return_value=chain):
             with pytest.raises(TimeoutError, match="timeout"):
-                correct_low_confidence_events(tokens, "C", "req")
+                correct_low_confidence_events(tokens, "C", "req", "qwen")
 
 
 class TestStructured:
@@ -64,16 +62,8 @@ class TestStructured:
         mock_llm.with_structured_output.return_value = MagicMock()
         with patch("tuneai.core.adapters.llm._get_llm", return_value=mock_llm):
             from tuneai.core.adapters.llm import _structured
-            _structured(KeyCorrectionResult)
+            _structured(KeyCorrectionResult, "qwen")
         assert mock_llm.with_structured_output.call_args.kwargs.get("method") == "function_calling"
-
-
-class TestPitchAssessmentStub:
-    def test_assess_pitch_range_returns_stub(self):
-        result = assess_pitch_range(events=[], source_key="C", target_key="G", request_id="req")
-        assert isinstance(result, PitchAssessmentResult)
-        assert result.too_high is False
-        assert result.octave_adjust == 0
 
 
 class TestPydanticModels:

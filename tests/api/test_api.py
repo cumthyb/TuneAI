@@ -1,7 +1,6 @@
 """API contract tests for current error semantics."""
 
 import asyncio
-import contextlib
 import io
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -278,29 +277,39 @@ class TestProviderRouting:
         assert resp.status_code == 400
         assert resp.json()["error_code"] == "INVALID_OCR_PROVIDER"
 
-    def test_unified_provider_passes_into_provider_overrides(self, client, minimal_png_bytes):
-        seen: dict[str, str | None] = {}
+    def test_providers_passed_to_pipeline(self, minimal_png_bytes):
+        mock_result = MagicMock()
+        mock_result.output_image_b64 = "dGVzdA=="
+        mock_result.score_ir = MagicMock()
+        mock_result.score_ir.model_dump.return_value = {"score_id": "test", "events": []}
+        mock_result.warnings = []
+        mock_result.processing_time_ms = 0
 
-        @contextlib.contextmanager
-        def _capture(**kwargs):
-            seen.update(kwargs)
-            yield
-
+        mock_pipeline = AsyncMock(return_value=mock_result)
         with (
             patch("tuneai.api.routes._list_providers_with_llm", return_value=["glm"]),
             patch("tuneai.api.routes._list_providers_with_vision_llm", return_value=["glm"]),
             patch("tuneai.api.routes._list_providers_with_ocr", return_value=["glm"]),
-            patch("tuneai.api.routes.provider_overrides", side_effect=lambda **kw: _capture(**kw)),
+            patch("tuneai.api.routes.run_pipeline", new=mock_pipeline),
+            patch(
+                "tuneai.api.routes.get_pipeline_config",
+                return_value={"max_image_size_mb": 20, "request_timeout_seconds": 30, "cleanup_after_response": False},
+            ),
         ):
-            resp = client.post(
-                "/api/transpose",
-                files={"image": ("score.png", io.BytesIO(minimal_png_bytes), "image/png")},
-                data=_strict_data(provider="glm", llm_provider="glm", vision_llm_provider="glm", ocr_provider="glm"),
-            )
+            from tuneai.main import app
+            with MagicMock():
+                pass
+            with patch("tuneai.main.app", app):
+                from fastapi.testclient import TestClient
+                with TestClient(app, raise_server_exceptions=False) as c:
+                    resp = c.post(
+                        "/api/transpose",
+                        files={"image": ("score.png", io.BytesIO(minimal_png_bytes), "image/png")},
+                        data=_strict_data(provider="glm", llm_provider="glm", vision_llm_provider="glm", ocr_provider="glm"),
+                    )
 
         assert resp.status_code == 200
-        assert seen == {
-            "llm_provider": "glm",
-            "vision_llm_provider": "glm",
-            "ocr_provider": "glm",
-        }
+        call_kwargs = mock_pipeline.call_args.kwargs
+        assert call_kwargs["llm_provider"] == "glm"
+        assert call_kwargs["vision_llm_provider"] == "glm"
+        assert call_kwargs["ocr_provider"] == "glm"

@@ -10,7 +10,6 @@ from tuneai.core.adapters.ocr import run_ocr
 from tuneai.core.adapters.vision import recognize_key_signature, validate_score_with_vision
 from tuneai.core.domain.filter import filter_note_digits
 from tuneai.core.domain.music import transpose_score_ir, validate_target_key
-from tuneai.core.domain.pitch_adjust import adjust_pitch
 from tuneai.core.domain.preprocess import preprocess_image
 from tuneai.core.domain.render import render_output
 from tuneai.core.domain.validate import validate_score_rules
@@ -35,7 +34,14 @@ class PipelineResult:
     processing_time_ms: int = 0
 
 
-async def run_pipeline(image_bytes: bytes, target_key: str, request_id: str) -> PipelineResult:
+async def run_pipeline(
+    image_bytes: bytes,
+    target_key: str,
+    request_id: str,
+    llm_provider: str,
+    vision_llm_provider: str,
+    ocr_provider: str,
+) -> PipelineResult:
     log = get_logger("pipeline")
     t_start = time.monotonic()
 
@@ -45,20 +51,20 @@ async def run_pipeline(image_bytes: bytes, target_key: str, request_id: str) -> 
 
         t = time.monotonic()
         clean_image = await asyncio.to_thread(preprocess_image, image_bytes)
-        log.debug(f"[1/7] preprocess done ({_ms(t)}ms)")
+        log.debug(f"[1/6] preprocess done ({_ms(t)}ms)")
 
         t = time.monotonic()
         source_tonic, ocr_chars = await asyncio.gather(
-            asyncio.to_thread(recognize_key_signature, clean_image),
-            asyncio.to_thread(run_ocr, clean_image),
+            asyncio.to_thread(recognize_key_signature, clean_image, vision_llm_provider),
+            asyncio.to_thread(run_ocr, clean_image, ocr_provider),
         )
         log.debug(
-            f"[2/7] parallel done ({_ms(t)}ms) key={source_tonic!r}, ocr_chars={len(ocr_chars)}"
+            f"[2/6] parallel done ({_ms(t)}ms) key={source_tonic!r}, ocr_chars={len(ocr_chars)}"
         )
 
         t = time.monotonic()
         events = await asyncio.to_thread(filter_note_digits, ocr_chars)
-        log.debug(f"[3/7] filter done ({_ms(t)}ms), events={len(events)}")
+        log.debug(f"[3/6] filter done ({_ms(t)}ms), events={len(events)}")
 
         if not events:
             raise PipelineError("NO_NOTES_FOUND", "OCR 未识别到任何音符，请检查图片质量")
@@ -73,6 +79,7 @@ async def run_pipeline(image_bytes: bytes, target_key: str, request_id: str) -> 
                     events_data,
                     source_tonic,
                     request_id,
+                    llm_provider,
                 )
                 if correction.confidence < 0.5:
                     warnings.append(
@@ -96,33 +103,29 @@ async def run_pipeline(image_bytes: bytes, target_key: str, request_id: str) -> 
             events=events,
         )
         transposed = transpose_score_ir(score_ir, target_key)
-        log.debug(f"[4/7] transpose done ({_ms(t)}ms): {source_tonic} -> {target_key}")
+        log.debug(f"[4/6] transpose done ({_ms(t)}ms): {source_tonic} -> {target_key}")
 
+        t = time.monotonic()
         warnings.extend(validate_score_rules(transposed))
-        
+
         llm_val_warnings, vl_val_warnings = await asyncio.gather(
-            asyncio.to_thread(validate_score_with_llm, transposed, request_id),
-            asyncio.to_thread(validate_score_with_vision, transposed, clean_image, request_id),
+            asyncio.to_thread(validate_score_with_llm, transposed, request_id, llm_provider),
+            asyncio.to_thread(validate_score_with_vision, transposed, clean_image, request_id, vision_llm_provider),
         )
         warnings.extend(llm_val_warnings)
         warnings.extend(vl_val_warnings)
-        log.debug(f"[5/7] validate done ({_ms(t)}ms), warnings={len(warnings)}")
+        log.debug(f"[5/6] validate done ({_ms(t)}ms), warnings={len(warnings)}")
 
         t = time.monotonic()
-        adjusted, pitch_warnings = await asyncio.to_thread(adjust_pitch, transposed, request_id)
-        warnings.extend(pitch_warnings)
-        log.debug(f"[6/7] pitch_adjust done ({_ms(t)}ms), pitch_warnings={len(pitch_warnings)}")
-
-        t = time.monotonic()
-        output_png_bytes = await asyncio.to_thread(render_output, image_bytes, score_ir, adjusted)
+        output_png_bytes = await asyncio.to_thread(render_output, image_bytes, score_ir, transposed)
         output_b64 = base64.b64encode(output_png_bytes).decode()
         save_output_image(request_id, output_png_bytes)
-        log.debug(f"[7/7] render done ({_ms(t)}ms), warnings={len(warnings)}")
+        log.debug(f"[6/6] render done ({_ms(t)}ms)")
 
         processing_time_ms = int((time.monotonic() - t_start) * 1000)
         return PipelineResult(
             output_image_b64=output_b64,
-            score_ir=adjusted,
+            score_ir=transposed,
             warnings=warnings,
             processing_time_ms=processing_time_ms,
         )

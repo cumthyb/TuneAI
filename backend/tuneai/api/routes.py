@@ -14,10 +14,9 @@ from tuneai.config import (
     get_ocr_config,
     get_pipeline_config,
     get_vision_llm_config,
+    list_registered_providers,
 )
 from tuneai.core.application.pipeline import PipelineError, run_pipeline
-from tuneai.core.adapters.llm_client import list_supported_providers
-from tuneai.core.adapters.provider_context import provider_overrides
 from tuneai.core.domain.music import validate_target_key
 from tuneai.core.infra.storage import cleanup
 from tuneai.logging_config import bind_request_id, reset_request_id, get_logger
@@ -35,7 +34,7 @@ _ALLOWED_FORMAT_HINT = "PNG、JPG 或 WEBP"
 
 def _list_providers_with_llm() -> list[str]:
     providers: list[str] = []
-    for p in list_supported_providers():
+    for p in list_registered_providers():
         try:
             cfg = get_llm_config(p)
         except ValueError:
@@ -47,7 +46,7 @@ def _list_providers_with_llm() -> list[str]:
 
 def _list_providers_with_vision_llm() -> list[str]:
     providers: list[str] = []
-    for p in list_supported_providers():
+    for p in list_registered_providers():
         try:
             cfg = get_vision_llm_config(p)
         except ValueError:
@@ -59,13 +58,13 @@ def _list_providers_with_vision_llm() -> list[str]:
 
 def _list_providers_with_ocr() -> list[str]:
     providers: list[str] = []
-    for p in list_supported_providers():
+    for p in list_registered_providers():
         try:
-            ocr_cfg = get_ocr_config(p)
+            cfg = get_ocr_config(p)
         except ValueError:
             continue
-        runner = str(ocr_cfg.get("runner")).strip()
-        if runner:
+        api_key = str(cfg.get("api_key", "")).strip()
+        if api_key:
             providers.append(p)
     return sorted(set(providers))
 
@@ -121,7 +120,6 @@ async def transpose(
     token = bind_request_id(request_id)
 
     try:
-        # Validate target_key
         if not validate_target_key(target_key):
             return _error_response(
                 status_code=400,
@@ -130,7 +128,6 @@ async def transpose(
                 request_id=request_id,
             )
 
-        # Validate image content type
         if not isinstance(image.content_type, str) or not image.content_type.strip():
             return _error_response(
                 status_code=400,
@@ -166,11 +163,10 @@ async def transpose(
 
         log.info(f"transpose request: target_key={target_key}, size={len(image_bytes)}")
 
-        provider = provider.strip().lower()
         llm_provider = llm_provider.strip().lower()
         vision_llm_provider = vision_llm_provider.strip().lower()
         ocr_provider = ocr_provider.strip().lower()
-        if not provider or not llm_provider or not vision_llm_provider or not ocr_provider:
+        if not llm_provider or not vision_llm_provider or not ocr_provider:
             return _error_response(
                 status_code=400,
                 error_code="MISSING_PROVIDER",
@@ -178,25 +174,25 @@ async def transpose(
                 request_id=request_id,
             )
 
-        allowed_llm_providers = set(_list_providers_with_llm())
-        allowed_vision_llm_providers = set(_list_providers_with_vision_llm())
-        allowed_ocr_providers = set(_list_providers_with_ocr())
+        allowed_llm = set(_list_providers_with_llm())
+        allowed_vision = set(_list_providers_with_vision_llm())
+        allowed_ocr = set(_list_providers_with_ocr())
 
-        if llm_provider not in allowed_llm_providers:
+        if llm_provider not in allowed_llm:
             return _error_response(
                 status_code=400,
                 error_code="INVALID_LLM_PROVIDER",
                 error_message=f"不支持的 LLM provider: {llm_provider}",
                 request_id=request_id,
             )
-        if vision_llm_provider not in allowed_vision_llm_providers:
+        if vision_llm_provider not in allowed_vision:
             return _error_response(
                 status_code=400,
                 error_code="INVALID_VISION_LLM_PROVIDER",
                 error_message=f"不支持的 Vision LLM provider: {vision_llm_provider}",
                 request_id=request_id,
             )
-        if ocr_provider not in allowed_ocr_providers:
+        if ocr_provider not in allowed_ocr:
             return _error_response(
                 status_code=400,
                 error_code="INVALID_OCR_PROVIDER",
@@ -206,15 +202,17 @@ async def transpose(
 
         timeout_seconds = _get_request_timeout_seconds()
         try:
-            with provider_overrides(
-                llm_provider=llm_provider,
-                vision_llm_provider=vision_llm_provider,
-                ocr_provider=ocr_provider,
-            ):
-                result = await asyncio.wait_for(
-                    run_pipeline(image_bytes, target_key, request_id),
-                    timeout=timeout_seconds,
-                )
+            result = await asyncio.wait_for(
+                run_pipeline(
+                    image_bytes,
+                    target_key,
+                    request_id,
+                    llm_provider=llm_provider,
+                    vision_llm_provider=vision_llm_provider,
+                    ocr_provider=ocr_provider,
+                ),
+                timeout=timeout_seconds,
+            )
         except asyncio.TimeoutError:
             return _error_response(
                 status_code=504,

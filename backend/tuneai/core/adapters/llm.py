@@ -23,26 +23,11 @@ class MeasureCorrectionResult(BaseModel):
     notes: str = Field(description="补充说明")
 
 
-class PitchAssessmentResult(BaseModel):
-    too_high: bool = Field(description="转调后整体音域是否偏高")
-    octave_adjust: int = Field(description="建议八度调整量（0=不变，-1=降低一个八度）")
-    accidental_ratio: float = Field(description="半音占比 0-1", ge=0.0, le=1.0)
-    suggested_key: str | None = Field(description="建议替代目标调")
-    confidence: float = Field(description="置信度 0-1", ge=0.0, le=1.0)
-    notes: str = Field(description="补充说明")
-
-
 _llm_instances: dict[tuple[str, str, str], object] = {}
 
 
-def _create_llm():
-    cfg = get_text_llm_config()
-    return build_chat_openai(cfg)
-
-
-def _get_llm():
-    cfg = get_text_llm_config()
-    provider = str(cfg.get("provider")).strip().lower()
+def _get_llm(provider: str):
+    cfg = get_text_llm_config(provider)
     model = str(cfg.get("model")).strip()
     base_url = str(cfg.get("base_url")).strip()
     if not provider or not model or not base_url:
@@ -50,17 +35,16 @@ def _get_llm():
     key = (provider, model, base_url)
     llm = _llm_instances.get(key)
     if llm is None:
-        llm = _create_llm()
+        llm = build_chat_openai(cfg)
         _llm_instances[key] = llm
     return llm
 
 
-def _structured(schema: type[BaseModel]):
-    llm = _get_llm()
-    return llm.with_structured_output(schema, method="function_calling")
+def _structured(schema: type[BaseModel], provider: str):
+    return _get_llm(provider).with_structured_output(schema, method="function_calling")
 
 
-def correct_key_signature(raw_text: str, context: str, request_id: str) -> KeyCorrectionResult:
+def correct_key_signature(raw_text: str, context: str, request_id: str, provider: str) -> KeyCorrectionResult:
     if not raw_text:
         raise ValueError("raw_text must be non-empty")
     prompt = (
@@ -71,11 +55,11 @@ def correct_key_signature(raw_text: str, context: str, request_id: str) -> KeyCo
         "调号格式为 '1=X'，其中 X 是主音（C D E F G A B，可带 # 或 b）。\n"
         "常见 OCR 错误：= 识别为 ＝ 或 一；# 识别为 井；b 识别为 6 或 B。"
     )
-    return _structured(KeyCorrectionResult).invoke(prompt)
+    return _structured(KeyCorrectionResult, provider).invoke(prompt)
 
 
 def correct_low_confidence_events(
-    events: list[dict], active_key: str, request_id: str
+    events: list[dict], active_key: str, request_id: str, provider: str
 ) -> MeasureCorrectionResult:
     tokens_str = json.dumps(events, ensure_ascii=False, indent=2)
     prompt = (
@@ -86,25 +70,7 @@ def correct_low_confidence_events(
         "返回完整的事件列表，每个事件包含字段：id, type, degree, accidental, octave_shift。\n"
         "如无需修改，原样返回，confidence 设为 1.0。"
     )
-    return _structured(MeasureCorrectionResult).invoke(prompt)
-
-
-def assess_pitch_range(
-    events: list[dict],
-    source_key: str,
-    target_key: str,
-    request_id: str,
-) -> PitchAssessmentResult:
-    log = get_logger("llm")
-    log.debug(f"assess_pitch_range: MVP stub, {source_key}->{target_key}, {len(events)} events")
-    return PitchAssessmentResult(
-        too_high=False,
-        octave_adjust=0,
-        accidental_ratio=0.0,
-        suggested_key=None,
-        confidence=1.0,
-        notes="MVP stub: no assessment performed",
-    )
+    return _structured(MeasureCorrectionResult, provider).invoke(prompt)
 
 
 class LLMValidationResult(BaseModel):
@@ -114,9 +80,9 @@ class LLMValidationResult(BaseModel):
     notes: str = Field(description="补充说明")
 
 
-def validate_score_with_llm(score: ScoreIR, request_id: str) -> list[Warning]:
+def validate_score_with_llm(score: ScoreIR, request_id: str, provider: str) -> list[Warning]:
     log = get_logger("validate_llm")
-    cfg = get_text_llm_config()
+    cfg = get_text_llm_config(provider)
     api_key = cfg.get("api_key")
     if not isinstance(api_key, str) or not api_key.strip():
         raise ValueError("llm.api_key must be configured for validate_score")
@@ -134,7 +100,7 @@ def validate_score_with_llm(score: ScoreIR, request_id: str) -> list[Warning]:
         "2. 音符序列中是否存在可疑模式（如大量 #/b 临时记号，可能暗示调号识别有误）\n"
         "3. 整体是否符合简谱转调的音乐规律"
     )
-    result: LLMValidationResult = _structured(LLMValidationResult).invoke(prompt)
+    result: LLMValidationResult = _structured(LLMValidationResult, provider).invoke(prompt)
     log.debug(
         f"[validate] LLM: is_valid={result.is_valid}, conf={result.confidence:.2f}, issues={result.issues}"
     )

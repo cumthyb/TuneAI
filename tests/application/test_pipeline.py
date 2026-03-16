@@ -7,6 +7,8 @@ from unittest.mock import patch
 
 import pytest
 
+_PROVIDERS = dict(llm_provider="qwen", vision_llm_provider="qwen", ocr_provider="qwen")
+
 
 @pytest.fixture
 def mock_ocr_and_llm():
@@ -33,7 +35,7 @@ class TestPipelineWithMocks:
     def test_full_pipeline_with_sample_image(self, sample_image_bytes, mock_ocr_and_llm):
         from tuneai.core.application.pipeline import run_pipeline
 
-        result = asyncio.run(run_pipeline(sample_image_bytes, "G", "req_test_sample"))
+        result = asyncio.run(run_pipeline(sample_image_bytes, "G", "req_test_sample", **_PROVIDERS))
         decoded = base64.b64decode(result.output_image_b64)
         assert len(decoded) > 0
         assert result.score_ir.target_key.tonic == "G"
@@ -43,7 +45,7 @@ class TestPipelineWithMocks:
         from PIL import Image
         from tuneai.core.application.pipeline import run_pipeline
 
-        result = asyncio.run(run_pipeline(sample_image_bytes, "F", "req_test_png"))
+        result = asyncio.run(run_pipeline(sample_image_bytes, "F", "req_test_png", **_PROVIDERS))
         img = Image.open(io.BytesIO(base64.b64decode(result.output_image_b64)))
         assert img.format == "PNG"
         assert img.width > 0 and img.height > 0
@@ -53,7 +55,7 @@ class TestPipelineWithMocks:
 
         request_id = "req_test_files"
         with patch("tuneai.core.infra.storage.get_outputs_dir", return_value=tmp_path):
-            asyncio.run(run_pipeline(sample_image_bytes, "C", request_id))
+            asyncio.run(run_pipeline(sample_image_bytes, "C", request_id, **_PROVIDERS))
         req_dir = tmp_path / request_id
         assert (req_dir / "input.png").exists()
         assert (req_dir / "output.png").exists()
@@ -71,11 +73,11 @@ class TestPipelineIntegration:
         from tuneai.core.domain.preprocess import preprocess_image
 
         binary = preprocess_image(sample_image_bytes)
-        assert len(run_ocr(binary)) > 0
+        assert len(run_ocr(binary, "qwen")) > 0
 
     def test_real_pipeline_on_sample(self, sample_image_bytes, run_integration):
         from tuneai.core.application.pipeline import run_pipeline
 
-        result = asyncio.run(run_pipeline(sample_image_bytes, "C", "req_integration"))
+        result = asyncio.run(run_pipeline(sample_image_bytes, "C", "req_integration", **_PROVIDERS))
         assert result.score_ir is not None
         assert result.output_image_b64
