@@ -135,9 +135,9 @@ def load_config() -> dict[str, Any]:
 
     ocr_updates = {
         "runner": os.getenv("TUNEAI_OCR_RUNNER"),
-        "access_key_id": os.getenv("TUNEAI_OCR_ACCESS_KEY_ID"),
-        "access_key_secret": os.getenv("TUNEAI_OCR_ACCESS_KEY_SECRET"),
-        "endpoint": os.getenv("TUNEAI_OCR_ENDPOINT"),
+        "api_key": os.getenv("TUNEAI_OCR_API_KEY"),
+        "base_url": os.getenv("TUNEAI_OCR_BASE_URL"),
+        "model": os.getenv("TUNEAI_OCR_MODEL"),
     }
     if any(v is not None for v in ocr_updates.values()):
         _overlay_provider_section(cfg, provider=ocr_provider, section="ocr", updates=ocr_updates)

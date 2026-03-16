@@ -213,15 +213,24 @@ class TestSuccessResponse:
 
 
 class TestProviderRouting:
-    def test_meta_inconsistent_default_provider_returns_500(self, client):
+    def test_meta_default_provider_falls_back_when_default_has_no_ocr(self, client):
         with (
             patch("tuneai.api.routes._list_providers_with_llm", return_value=["glm", "qwen"]),
-            patch("tuneai.api.routes._list_providers_with_vision_llm", return_value=["glm"]),
-            patch("tuneai.api.routes._list_providers_with_ocr", return_value=["qwen"]),
-            patch("tuneai.api.routes.get_default_provider", return_value="glm"),
+            patch("tuneai.api.routes._list_providers_with_vision_llm", return_value=["glm", "qwen"]),
+            patch("tuneai.api.routes._list_providers_with_ocr", return_value=["glm"]),
+            patch("tuneai.api.routes.get_default_provider", return_value="qwen"),
         ):
             resp = client.get("/api/meta")
-        assert resp.status_code == 500
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["providers"] == ["glm"]
+        assert body["llm_providers"] == ["glm", "qwen"]
+        assert body["vision_llm_providers"] == ["glm", "qwen"]
+        assert body["ocr_providers"] == ["glm"]
+        assert body["default_provider"] == "glm"
+        assert body["default_llm_provider"] == "qwen"
+        assert body["default_vision_llm_provider"] == "qwen"
+        assert body["default_ocr_provider"] == "glm"
 
     def test_meta_returns_provider_lists_when_consistent(self, client):
         with (
@@ -241,6 +250,19 @@ class TestProviderRouting:
         assert body["default_llm_provider"] == "glm"
         assert body["default_vision_llm_provider"] == "glm"
         assert body["default_ocr_provider"] == "glm"
+
+    def test_meta_ocr_enumeration_excludes_qwen_without_ocr(self, client):
+        with (
+            patch("tuneai.api.routes._list_providers_with_llm", return_value=["glm", "qwen"]),
+            patch("tuneai.api.routes._list_providers_with_vision_llm", return_value=["glm", "qwen"]),
+            patch("tuneai.api.routes._list_providers_with_ocr", return_value=["glm"]),
+            patch("tuneai.api.routes.get_default_provider", return_value="glm"),
+        ):
+            resp = client.get("/api/meta")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["ocr_providers"] == ["glm"]
+        assert body["providers"] == ["glm"]
 
     def test_invalid_unified_provider_returns_400(self, client, minimal_png_bytes):
         with (

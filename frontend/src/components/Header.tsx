@@ -5,30 +5,42 @@ import type { TargetKey } from '../types/api'
 interface HeaderProps {
   selectedFile: File | null
   targetKey: TargetKey
-  provider: string
-  providers: string[]
+  llmProvider: string
+  llmProviders: string[]
+  visionLlmProvider: string
+  visionLlmProviders: string[]
+  ocrProvider: string
+  ocrProviders: string[]
   controlError: string | null
   isLoading: boolean
   systemOnline: boolean
   apiReady: boolean
   isCheckingStatus: boolean
   onTargetKeyChange: (key: TargetKey) => void
-  onProviderChange: (provider: string) => void
+  onLlmProviderChange: (provider: string) => void
+  onVisionLlmProviderChange: (provider: string) => void
+  onOcrProviderChange: (provider: string) => void
   onSubmit: () => void
 }
 
 export default function Header({
   selectedFile,
   targetKey,
-  provider,
-  providers,
+  llmProvider,
+  llmProviders,
+  visionLlmProvider,
+  visionLlmProviders,
+  ocrProvider,
+  ocrProviders,
   controlError,
   isLoading,
   systemOnline,
   apiReady,
   isCheckingStatus,
   onTargetKeyChange,
-  onProviderChange,
+  onLlmProviderChange,
+  onVisionLlmProviderChange,
+  onOcrProviderChange,
   onSubmit,
 }: HeaderProps) {
   const systemDotClass = systemOnline ? 'bg-emerald-400' : 'bg-rose-400'
@@ -84,10 +96,16 @@ export default function Header({
         <ControlBar
           file={selectedFile}
           targetKey={targetKey}
-          provider={provider}
-          providers={providers}
+          llmProvider={llmProvider}
+          llmProviders={llmProviders}
+          visionLlmProvider={visionLlmProvider}
+          visionLlmProviders={visionLlmProviders}
+          ocrProvider={ocrProvider}
+          ocrProviders={ocrProviders}
           onTargetKeyChange={onTargetKeyChange}
-          onProviderChange={onProviderChange}
+          onLlmProviderChange={onLlmProviderChange}
+          onVisionLlmProviderChange={onVisionLlmProviderChange}
+          onOcrProviderChange={onOcrProviderChange}
           onSubmit={onSubmit}
           disabled={isLoading}
           error={controlError}

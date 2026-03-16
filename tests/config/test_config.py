@@ -47,15 +47,15 @@ class TestConfigEnvOverrides:
         monkeypatch.setattr(config_module, "_load_json", lambda _p: dict(base_cfg))
         monkeypatch.setenv("TUNEAI_OCR_PROVIDER", "qwen")
         monkeypatch.setenv("TUNEAI_OCR_RUNNER", "pkg.mod:run")
-        monkeypatch.setenv("TUNEAI_OCR_ACCESS_KEY_ID", "id")
-        monkeypatch.setenv("TUNEAI_OCR_ACCESS_KEY_SECRET", "secret")
-        monkeypatch.setenv("TUNEAI_OCR_ENDPOINT", "ocr.example.com")
+        monkeypatch.setenv("TUNEAI_OCR_API_KEY", "ocr_key")
+        monkeypatch.setenv("TUNEAI_OCR_BASE_URL", "https://ocr.example.com/v1")
+        monkeypatch.setenv("TUNEAI_OCR_MODEL", "glm-4.6v")
 
         cfg = config_module.load_config()
         assert cfg["providers"]["qwen"]["ocr"]["runner"] == "pkg.mod:run"
-        assert cfg["providers"]["qwen"]["ocr"]["access_key_id"] == "id"
-        assert cfg["providers"]["qwen"]["ocr"]["access_key_secret"] == "secret"
-        assert cfg["providers"]["qwen"]["ocr"]["endpoint"] == "ocr.example.com"
+        assert cfg["providers"]["qwen"]["ocr"]["api_key"] == "ocr_key"
+        assert cfg["providers"]["qwen"]["ocr"]["base_url"] == "https://ocr.example.com/v1"
+        assert cfg["providers"]["qwen"]["ocr"]["model"] == "glm-4.6v"
 
     def test_default_provider_can_be_overridden_by_env(self, monkeypatch):
         base_cfg = {

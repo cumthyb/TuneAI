@@ -10,7 +10,9 @@ export default function App() {
     selectedFile,
     targetKey,
     providerOptions,
-    selectedProvider,
+    selectedLlmProvider,
+    selectedVisionLlmProvider,
+    selectedOcrProvider,
     controlError,
     pageState,
     serviceStatus,
@@ -18,7 +20,9 @@ export default function App() {
     isSuccess,
     leftImageUrl,
     setTargetKey,
-    setSelectedProvider,
+    setSelectedLlmProvider,
+    setSelectedVisionLlmProvider,
+    setSelectedOcrProvider,
     handleFileChange,
     handleSubmit,
     handleRetry,
@@ -40,15 +44,21 @@ export default function App() {
       <Header
         selectedFile={selectedFile}
         targetKey={targetKey}
-        provider={selectedProvider}
-        providers={providerOptions.providers}
+        llmProvider={selectedLlmProvider}
+        llmProviders={providerOptions.llmProviders}
+        visionLlmProvider={selectedVisionLlmProvider}
+        visionLlmProviders={providerOptions.visionLlmProviders}
+        ocrProvider={selectedOcrProvider}
+        ocrProviders={providerOptions.ocrProviders}
         controlError={controlError}
         isLoading={isLoading}
         systemOnline={serviceStatus.systemOnline}
         apiReady={serviceStatus.apiReady}
         isCheckingStatus={serviceStatus.isCheckingStatus}
         onTargetKeyChange={setTargetKey}
-        onProviderChange={setSelectedProvider}
+        onLlmProviderChange={setSelectedLlmProvider}
+        onVisionLlmProviderChange={setSelectedVisionLlmProvider}
+        onOcrProviderChange={setSelectedOcrProvider}
         onSubmit={handleSubmit}
       />
 

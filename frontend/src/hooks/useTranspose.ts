@@ -17,6 +17,9 @@ const META_CONFIG_ERROR_MESSAGE =
 
 type ProviderOptions = {
   providers: string[]
+  llmProviders: string[]
+  visionLlmProviders: string[]
+  ocrProviders: string[]
 }
 
 const logger = {
@@ -33,14 +36,17 @@ async function transpose(params: {
   image: File
   targetKey: TargetKey
   provider: string
+  llmProvider: string
+  visionLlmProvider: string
+  ocrProvider: string
 }): Promise<TransposeResponse> {
   const formData = new FormData()
   formData.append('image', params.image)
   formData.append('target_key', params.targetKey)
   formData.append('provider', params.provider)
-  formData.append('llm_provider', params.provider)
-  formData.append('vision_llm_provider', params.provider)
-  formData.append('ocr_provider', params.provider)
+  formData.append('llm_provider', params.llmProvider)
+  formData.append('vision_llm_provider', params.visionLlmProvider)
+  formData.append('ocr_provider', params.ocrProvider)
   const response = await fetch('/api/transpose', {
     method: 'POST',
     body: formData,
@@ -224,8 +230,14 @@ export function useTranspose() {
   })
   const [providerOptions, setProviderOptions] = useState<ProviderOptions>({
     providers: [],
+    llmProviders: [],
+    visionLlmProviders: [],
+    ocrProviders: [],
   })
   const [selectedProvider, setSelectedProvider] = useState<string>('')
+  const [selectedLlmProvider, setSelectedLlmProvider] = useState<string>('')
+  const [selectedVisionLlmProvider, setSelectedVisionLlmProvider] = useState<string>('')
+  const [selectedOcrProvider, setSelectedOcrProvider] = useState<string>('')
 
   useEffect(() => {
     let cancelled = false
@@ -252,21 +264,50 @@ export function useTranspose() {
             maxSizeMB: meta.max_image_size_mb,
           })
           const providers = normalizeProviders(meta.providers)
+          const llmProviders = normalizeProviders(meta.llm_providers)
+          const visionLlmProviders = normalizeProviders(meta.vision_llm_providers)
+          const ocrProviders = normalizeProviders(meta.ocr_providers)
           const defaultProvider = normalizeProviderValue(meta.default_provider)
-          if (providers.length === 0) {
-            throw new Error('api/meta 返回的 providers 不能为空')
-          }
+          const defaultLlmProvider = normalizeProviderValue(meta.default_llm_provider)
+          const defaultVisionLlmProvider = normalizeProviderValue(meta.default_vision_llm_provider)
+          const defaultOcrProvider = normalizeProviderValue(meta.default_ocr_provider)
           if (!providers.includes(defaultProvider)) {
             throw new Error(`default_provider 未包含在 providers 中: ${defaultProvider}`)
+          }
+          if (!llmProviders.includes(defaultLlmProvider)) {
+            throw new Error(`default_llm_provider 未包含在 llm_providers 中: ${defaultLlmProvider}`)
+          }
+          if (!visionLlmProviders.includes(defaultVisionLlmProvider)) {
+            throw new Error(
+              `default_vision_llm_provider 未包含在 vision_llm_providers 中: ${defaultVisionLlmProvider}`,
+            )
+          }
+          if (!ocrProviders.includes(defaultOcrProvider)) {
+            throw new Error(`default_ocr_provider 未包含在 ocr_providers 中: ${defaultOcrProvider}`)
           }
 
           setProviderOptions({
             providers,
+            llmProviders,
+            visionLlmProviders,
+            ocrProviders,
           })
 
           setSelectedProvider((prev) => {
             if (prev && providers.includes(prev)) return prev
             return defaultProvider
+          })
+          setSelectedLlmProvider((prev) => {
+            if (prev && llmProviders.includes(prev)) return prev
+            return defaultLlmProvider
+          })
+          setSelectedVisionLlmProvider((prev) => {
+            if (prev && visionLlmProviders.includes(prev)) return prev
+            return defaultVisionLlmProvider
+          })
+          setSelectedOcrProvider((prev) => {
+            if (prev && ocrProviders.includes(prev)) return prev
+            return defaultOcrProvider
           })
         }
       } catch (err) {
@@ -328,8 +369,8 @@ export function useTranspose() {
   }, [uploadRules])
 
   const handleSubmit = useCallback(async () => {
-    if (!selectedFile || !selectedPreviewUrl || !selectedProvider) {
-      setPageState({ status: 'error', error: '提交参数不完整：缺少文件、预览地址或 provider' })
+    if (!selectedFile || !selectedPreviewUrl || !selectedLlmProvider || !selectedVisionLlmProvider || !selectedOcrProvider) {
+      setPageState({ status: 'error', error: '提交参数不完整：缺少文件、预览地址或模型 provider' })
       return
     }
     setPageState({ status: 'loading', previewUrl: selectedPreviewUrl })
@@ -337,7 +378,10 @@ export function useTranspose() {
       const res = await transpose({
         image: selectedFile,
         targetKey,
-        provider: selectedProvider,
+        provider: selectedProvider || selectedLlmProvider,
+        llmProvider: selectedLlmProvider,
+        visionLlmProvider: selectedVisionLlmProvider,
+        ocrProvider: selectedOcrProvider,
       })
       if (res.success) {
         setPageState({
@@ -362,7 +406,7 @@ export function useTranspose() {
       logger.error('transpose fetch failed', { error: message })
       setPageState({ status: 'error', error: message })
     }
-  }, [selectedFile, selectedPreviewUrl, selectedProvider, targetKey])
+  }, [selectedFile, selectedPreviewUrl, selectedProvider, selectedLlmProvider, selectedVisionLlmProvider, selectedOcrProvider, targetKey])
 
   const handleRetry = useCallback(() => {
     setPageState({ status: 'idle' })
@@ -391,7 +435,9 @@ export function useTranspose() {
     pageState,
     serviceStatus,
     providerOptions,
-    selectedProvider,
+    selectedLlmProvider,
+    selectedVisionLlmProvider,
+    selectedOcrProvider,
     
     // 计算属性
     isLoading,
@@ -400,7 +446,9 @@ export function useTranspose() {
     
     // 操作方法
     setTargetKey,
-    setSelectedProvider,
+    setSelectedLlmProvider,
+    setSelectedVisionLlmProvider,
+    setSelectedOcrProvider,
     handleFileChange,
     handleSubmit,
     handleRetry,

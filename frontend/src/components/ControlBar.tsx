@@ -3,10 +3,16 @@ import { TARGET_KEYS, type TargetKey } from '../types/api'
 export interface ControlBarProps {
   file: File | null
   targetKey: TargetKey
-  provider: string
-  providers: string[]
+  llmProvider: string
+  llmProviders: string[]
+  visionLlmProvider: string
+  visionLlmProviders: string[]
+  ocrProvider: string
+  ocrProviders: string[]
   onTargetKeyChange: (key: TargetKey) => void
-  onProviderChange: (provider: string) => void
+  onLlmProviderChange: (provider: string) => void
+  onVisionLlmProviderChange: (provider: string) => void
+  onOcrProviderChange: (provider: string) => void
   onSubmit: () => void
   disabled?: boolean
   error?: string | null
@@ -15,10 +21,16 @@ export interface ControlBarProps {
 export default function ControlBar({
   file,
   targetKey,
-  provider,
-  providers,
+  llmProvider,
+  llmProviders,
+  visionLlmProvider,
+  visionLlmProviders,
+  ocrProvider,
+  ocrProviders,
   onTargetKeyChange,
-  onProviderChange,
+  onLlmProviderChange,
+  onVisionLlmProviderChange,
+  onOcrProviderChange,
   onSubmit,
   disabled,
   error,
@@ -56,23 +68,83 @@ export default function ControlBar({
           </div>
         </div>
 
-        {/* 统一供应商（当前用于 OCR / LLM / VL-LLM） */}
+        {/* LLM Provider */}
         <div className="group flex items-center gap-3">
-          <label htmlFor="provider" className="flex items-center gap-1.5 text-xs font-medium text-cyan-400/80">
+          <label htmlFor="llm-provider" className="flex items-center gap-1.5 text-xs font-medium text-cyan-400/80">
             <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1-1-3 1 1-3-1-1 3-.75M12 3v4m0 0l-2-2m2 2l2-2m-6 6h8m-8 4h8" />
             </svg>
-            PROVIDER
+            LLM
           </label>
           <div className="relative">
             <select
-              id="provider"
-              value={provider}
-              onChange={(e) => onProviderChange(e.target.value)}
+              id="llm-provider"
+              value={llmProvider}
+              onChange={(e) => onLlmProviderChange(e.target.value)}
               disabled={disabled}
               className="appearance-none rounded-lg border border-cyan-500/30 bg-slate-950/80 px-3 py-1.5 pr-8 text-sm font-mono font-medium uppercase text-cyan-100 backdrop-blur-sm transition-all hover:border-cyan-400/50 hover:bg-slate-900/80 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 disabled:opacity-50"
             >
-              {providers.map((item) => (
+              {llmProviders.map((item) => (
+                <option key={item} value={item} className="bg-slate-950 font-mono">
+                  {item}
+                </option>
+              ))}
+            </select>
+            <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-cyan-500">
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        {/* Vision LLM Provider */}
+        <div className="group flex items-center gap-3">
+          <label htmlFor="vision-llm-provider" className="flex items-center gap-1.5 text-xs font-medium text-cyan-400/80">
+            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7h18M3 12h18M3 17h18" />
+            </svg>
+            VISION
+          </label>
+          <div className="relative">
+            <select
+              id="vision-llm-provider"
+              value={visionLlmProvider}
+              onChange={(e) => onVisionLlmProviderChange(e.target.value)}
+              disabled={disabled}
+              className="appearance-none rounded-lg border border-cyan-500/30 bg-slate-950/80 px-3 py-1.5 pr-8 text-sm font-mono font-medium uppercase text-cyan-100 backdrop-blur-sm transition-all hover:border-cyan-400/50 hover:bg-slate-900/80 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 disabled:opacity-50"
+            >
+              {visionLlmProviders.map((item) => (
+                <option key={item} value={item} className="bg-slate-950 font-mono">
+                  {item}
+                </option>
+              ))}
+            </select>
+            <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-cyan-500">
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        {/* OCR Provider */}
+        <div className="group flex items-center gap-3">
+          <label htmlFor="ocr-provider" className="flex items-center gap-1.5 text-xs font-medium text-cyan-400/80">
+            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7h16v10H4zM8 11h8" />
+            </svg>
+            OCR
+          </label>
+          <div className="relative">
+            <select
+              id="ocr-provider"
+              value={ocrProvider}
+              onChange={(e) => onOcrProviderChange(e.target.value)}
+              disabled={disabled}
+              className="appearance-none rounded-lg border border-cyan-500/30 bg-slate-950/80 px-3 py-1.5 pr-8 text-sm font-mono font-medium uppercase text-cyan-100 backdrop-blur-sm transition-all hover:border-cyan-400/50 hover:bg-slate-900/80 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 disabled:opacity-50"
+            >
+              {ocrProviders.map((item) => (
                 <option key={item} value={item} className="bg-slate-950 font-mono">
                   {item}
                 </option>

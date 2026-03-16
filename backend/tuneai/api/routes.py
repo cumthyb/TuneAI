@@ -36,7 +36,10 @@ _ALLOWED_FORMAT_HINT = "PNG、JPG 或 WEBP"
 def _list_providers_with_llm() -> list[str]:
     providers: list[str] = []
     for p in list_supported_providers():
-        cfg = get_llm_config(p)
+        try:
+            cfg = get_llm_config(p)
+        except ValueError:
+            continue
         if isinstance(cfg, dict) and cfg:
             providers.append(p)
     return sorted(set(providers))
@@ -45,7 +48,10 @@ def _list_providers_with_llm() -> list[str]:
 def _list_providers_with_vision_llm() -> list[str]:
     providers: list[str] = []
     for p in list_supported_providers():
-        cfg = get_vision_llm_config(p)
+        try:
+            cfg = get_vision_llm_config(p)
+        except ValueError:
+            continue
         if isinstance(cfg, dict) and cfg:
             providers.append(p)
     return sorted(set(providers))
@@ -54,26 +60,35 @@ def _list_providers_with_vision_llm() -> list[str]:
 def _list_providers_with_ocr() -> list[str]:
     providers: list[str] = []
     for p in list_supported_providers():
-        ocr_cfg = get_ocr_config(p)
+        try:
+            ocr_cfg = get_ocr_config(p)
+        except ValueError:
+            continue
         runner = str(ocr_cfg.get("runner")).strip()
         if runner:
             providers.append(p)
     return sorted(set(providers))
 
 
+def _pick_default_provider(candidates: list[str], preferred: str, capability: str) -> str:
+    if not candidates:
+        raise ValueError(f"no providers configured for {capability}")
+    if preferred in candidates:
+        return preferred
+    return candidates[0]
+
+
 @router.get("/meta", response_model=ApiMetaResponse)
 def get_api_meta() -> ApiMetaResponse:
+    configured_default = get_default_provider()
     llm_providers = _list_providers_with_llm()
     vision_providers = _list_providers_with_vision_llm()
     ocr_providers = _list_providers_with_ocr()
-    providers = sorted({*llm_providers, *vision_providers, *ocr_providers})
-    default_provider = get_default_provider()
-    if default_provider not in llm_providers:
-        raise ValueError(f"default provider has no llm config: {default_provider}")
-    if default_provider not in vision_providers:
-        raise ValueError(f"default provider has no vision_llm config: {default_provider}")
-    if default_provider not in ocr_providers:
-        raise ValueError(f"default provider has no ocr config: {default_provider}")
+    providers = sorted(set(llm_providers) & set(vision_providers) & set(ocr_providers))
+    default_llm_provider = _pick_default_provider(llm_providers, configured_default, "llm")
+    default_vision_provider = _pick_default_provider(vision_providers, configured_default, "vision_llm")
+    default_ocr_provider = _pick_default_provider(ocr_providers, configured_default, "ocr")
+    default_provider = _pick_default_provider(providers, configured_default, "llm+vision_llm+ocr")
     return ApiMetaResponse(
         allowed_image_types=sorted(_ALLOWED_CONTENT_TYPES),
         max_image_size_mb=_get_max_image_size_mb(),
@@ -82,9 +97,9 @@ def get_api_meta() -> ApiMetaResponse:
         llm_providers=llm_providers,
         vision_llm_providers=vision_providers,
         ocr_providers=ocr_providers,
-        default_llm_provider=default_provider,
-        default_vision_llm_provider=default_provider,
-        default_ocr_provider=default_provider,
+        default_llm_provider=default_llm_provider,
+        default_vision_llm_provider=default_vision_provider,
+        default_ocr_provider=default_ocr_provider,
     )
 
 

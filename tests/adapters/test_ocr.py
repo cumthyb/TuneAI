@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from tuneai.core.adapters.ocr import OcrChar, run_ocr
+from tuneai.core.adapters.ocr.factory import get_ocr_runner
 
 
 class TestRunOcr:
@@ -53,3 +54,9 @@ class TestRunOcr:
         ):
             with pytest.raises(ValueError, match="ocr.runner must be a non-empty string"):
                 run_ocr(sample_image_array)
+
+
+class TestOcrRunnerEntrypoints:
+    def test_legacy_alicloud_runner_entrypoint_is_not_supported(self):
+        with pytest.raises(ModuleNotFoundError):
+            get_ocr_runner("qwen", {"qwen": "tuneai.core.adapters.ocr.providers.alicloud:run_alicloud_ocr"})

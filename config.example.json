@@ -15,7 +15,7 @@
       "llm": {
         "api_key": "",
         "base_url": "",
-        "model": "glm-4-plus",
+        "model": "glm-5",
         "temperature": 0.1,
         "max_tokens": 1024,
         "timeout_seconds": 30,
@@ -28,19 +28,27 @@
       "vision_llm": {
         "api_key": "",
         "base_url": "",
-        "model": "glm-4v-plus",
+        "model": "glm-4.6v",
         "timeout_seconds": 30,
         "client_class": "langchain_openai.ChatOpenAI",
         "client_kwargs": {},
         "model_kwargs": {},
         "extra_body": {}
+      },
+      "ocr": {
+        "runner": "tuneai.core.adapters.ocr.providers.glm:run_glm_ocr",
+        "api_key": "",
+        "base_url": "https://open.bigmodel.cn/api/paas/v4",
+        "model": "glm-4.6v",
+        "timeout_seconds": 30,
+        "max_tokens": 4096
       }
     },
     "qwen": {
       "llm": {
         "api_key": "",
         "base_url": "",
-        "model": "qwen-plus",
+        "model": "qwen3.5-plus",
         "temperature": 0.1,
         "max_tokens": 1024,
         "timeout_seconds": 30,
@@ -53,7 +61,7 @@
       "vision_llm": {
         "api_key": "",
         "base_url": "",
-        "model": "qwen-vl-max",
+        "model": "qwen3-vl-plus",
         "timeout_seconds": 30,
         "client_class": "langchain_openai.ChatOpenAI",
         "client_kwargs": {},
@@ -62,10 +70,11 @@
       },
       "ocr": {
         "runner": "tuneai.core.adapters.ocr.providers.qwen:run_qwen_ocr",
-        "access_key_id": "",
-        "access_key_secret": "",
-        "endpoint": "ocr-api.cn-hangzhou.aliyuncs.com",
-        "timeout_seconds": 15
+        "api_key": "",
+        "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "model": "qwen-vl-ocr-latest",
+        "timeout_seconds": 30,
+        "max_tokens": 4096
       }
     }
   },
