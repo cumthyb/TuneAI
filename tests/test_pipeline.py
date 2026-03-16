@@ -6,9 +6,10 @@
 - TestPipelineIntegration:     (可选) 真实 OCR+LLM，需要 --run-integration 标志
 """
 import base64
+import asyncio
 import io
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -78,37 +79,18 @@ class TestMusicTranspositionOnly:
 
 @pytest.fixture
 def mock_ocr_and_llm():
-    """Mock PaddleOCR 和 LangChain LLM，返回固定的 1=C + 三个音符。"""
-    from tuneai.core.llm import KeyCorrectionResult, MeasureCorrectionResult
+    """Mock OCR provider runner，返回固定数字序列。"""
+    from tuneai.core.ocr import OcrChar
 
-    def _make_ocr_result():
-        # PaddleOCR 格式：[[[polygon], (text, conf)], ...]
-        return [[
-            ([[10, 10], [80, 10], [80, 30], [10, 30]], ("1=C", 0.97)),
-            ([[100, 50], [115, 50], [115, 70], [100, 70]], ("1",  0.93)),
-            ([[120, 50], [135, 50], [135, 70], [120, 70]], ("2",  0.91)),
-            ([[140, 50], [155, 50], [155, 70], [140, 70]], ("3",  0.94)),
-            ([[160, 50], [175, 50], [175, 70], [160, 70]], ("4",  0.89)),
-            ([[180, 50], [195, 50], [195, 70], [180, 70]], ("5",  0.92)),
-        ]]
+    chars = [
+        OcrChar(text="1", bbox=[100, 50, 15, 20], confidence=0.93),
+        OcrChar(text="2", bbox=[120, 50, 15, 20], confidence=0.91),
+        OcrChar(text="3", bbox=[140, 50, 15, 20], confidence=0.94),
+        OcrChar(text="4", bbox=[160, 50, 15, 20], confidence=0.89),
+        OcrChar(text="5", bbox=[180, 50, 15, 20], confidence=0.92),
+    ]
 
-    mock_key = KeyCorrectionResult(tonic="C", label="1=C", confidence=0.97)
-    mock_measure = MeasureCorrectionResult(events=[], confidence=0.95)
-
-    with (
-        patch("tuneai.core.ocr._get_ocr") as mock_ocr_fn,
-        patch("tuneai.core.llm._get_llm") as mock_llm_fn,
-    ):
-        mock_ocr = MagicMock()
-        mock_ocr.ocr.return_value = _make_ocr_result()
-        mock_ocr_fn.return_value = mock_ocr
-
-        mock_llm = MagicMock()
-        mock_structured = MagicMock()
-        mock_structured.invoke.return_value = mock_key
-        mock_llm.with_structured_output.return_value = mock_structured
-        mock_llm_fn.return_value = mock_llm
-
+    with patch("tuneai.core.ocr.get_ocr_runner", return_value=lambda _img, _cfg: chars):
         yield
 
 
@@ -118,7 +100,7 @@ class TestPipelineWithMocks:
         """使用 匆匆那年.png 运行完整 pipeline（OCR/LLM 已 mock）。"""
         from tuneai.core.task_manager import run_pipeline
 
-        result = run_pipeline(sample_image_bytes, "G", "req_test_sample")
+        result = asyncio.run(run_pipeline(sample_image_bytes, "G", "req_test_sample"))
 
         # 输出 base64 可解码
         decoded = base64.b64decode(result.output_image_b64)
@@ -133,7 +115,7 @@ class TestPipelineWithMocks:
         from tuneai.core.task_manager import run_pipeline
         from PIL import Image
 
-        result = run_pipeline(sample_image_bytes, "F", "req_test_png")
+        result = asyncio.run(run_pipeline(sample_image_bytes, "F", "req_test_png"))
         decoded = base64.b64decode(result.output_image_b64)
         img = Image.open(io.BytesIO(decoded))
         assert img.format == "PNG"
@@ -148,7 +130,7 @@ class TestPipelineWithMocks:
 
         # 临时覆盖 outputs 目录到 tmp_path
         with _patch("tuneai.core.storage.get_outputs_dir", return_value=tmp_path):
-            run_pipeline(sample_image_bytes, "C", request_id)
+            asyncio.run(run_pipeline(sample_image_bytes, "C", request_id))
 
         req_dir = tmp_path / request_id
         assert (req_dir / "input.png").exists(), "input.png 应在请求目录中"
@@ -158,7 +140,7 @@ class TestPipelineWithMocks:
         """1=G 简谱移调到 C，ScoreIR target_key 应为 C。"""
         from tuneai.core.task_manager import run_pipeline
 
-        result = run_pipeline(sample_image_bytes, "C", "req_test_g2c")
+        result = asyncio.run(run_pipeline(sample_image_bytes, "C", "req_test_g2c"))
         assert result.score_ir.target_key.tonic == "C"
         assert result.score_ir.target_key.label == "1=C"
 
@@ -187,18 +169,15 @@ class TestPipelineIntegration:
 
     def test_real_ocr_on_sample(self, sample_image_bytes, run_integration):
         from tuneai.core.preprocess import preprocess_image
-        from tuneai.core.ocr import run_ocr, extract_key_signature
+        from tuneai.core.ocr import run_ocr
 
         binary = preprocess_image(sample_image_bytes)
         tokens = run_ocr(binary)
         assert len(tokens) > 0, "应识别到至少一个 token"
 
-        key_tok = extract_key_signature(tokens)
-        assert key_tok is not None, "应能识别到调号"
-
     def test_real_pipeline_on_sample(self, sample_image_bytes, run_integration):
         from tuneai.core.task_manager import run_pipeline
 
-        result = run_pipeline(sample_image_bytes, "C", "req_integration")
+        result = asyncio.run(run_pipeline(sample_image_bytes, "C", "req_integration"))
         assert result.score_ir is not None
         assert result.output_image_b64

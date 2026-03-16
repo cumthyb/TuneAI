@@ -2,12 +2,10 @@
 LangChain 封装、结构化输出、低置信度纠错与补全。
 
 配置来源：config.json > llm
-  base_url                    任意 OpenAI-compatible 端点（DashScope / Ollama / OpenAI）
+  base_url                    任意 OpenAI-compatible 端点
   api_key                     对应端点的 API Key
-  model                       模型名称，默认 qwen-plus
+  model                       模型名称（由配置决定）
   temperature / max_tokens / timeout_seconds
-  structured_output_method    "function_calling"（默认，兼容最广）| "json_schema"
-  disable_parallel_tool_calls true 时禁用 parallel_tool_calls（Ollama 等非标准端点需要）
 """
 from __future__ import annotations
 
@@ -58,26 +56,15 @@ _llm_instance = None
 
 
 def _create_llm():
-    from langchain_openai import ChatOpenAI
-    from tuneai.config import get_llm_config
+    from tuneai.core.llm_client import build_chat_openai, get_text_llm_config
 
-    cfg = get_llm_config()
-    base_url = cfg.get("base_url") or None
-    api_key  = cfg.get("api_key") or "dummy"
-    timeout  = float(cfg.get("timeout_seconds", 30))
-
-    disabled_params: dict | None = None
-    if cfg.get("disable_parallel_tool_calls", False):
-        disabled_params = {"parallel_tool_calls": None}
-
-    return ChatOpenAI(
-        model=cfg.get("model", "qwen-plus"),
-        base_url=base_url,
-        api_key=api_key,
-        temperature=cfg.get("temperature", 0.1),
-        max_tokens=cfg.get("max_tokens", 1024),
-        timeout=timeout,
-        disabled_params=disabled_params,
+    cfg = get_text_llm_config()
+    return build_chat_openai(
+        cfg,
+        default_model="text-model",
+        default_temperature=0.1,
+        default_max_tokens=1024,
+        default_timeout_seconds=30,
     )
 
 
@@ -90,22 +77,14 @@ def _get_llm():
 
 def _structured(schema: type[BaseModel]):
     """
-    返回 with_structured_output 链。
-    method 由 config.llm.structured_output_method 控制：
-      "function_calling" — 默认，兼容 Ollama/DashScope 等
-      "json_schema"      — OpenAI 原生，strict 模式
+    返回 with_structured_output 链，统一使用 function_calling。
     """
-    from tuneai.config import get_llm_config
-    method = get_llm_config().get("structured_output_method", "function_calling")
-
     llm = _get_llm()
-    if method == "json_schema":
-        return llm.with_structured_output(schema, method="json_schema", strict=True)
     return llm.with_structured_output(schema, method="function_calling")
 
 
 # ---------------------------------------------------------------------------
-# 任务 A：调号 OCR 纠错（作为 Qwen-VL 的 fallback 或独立使用）
+# 任务 A：调号 OCR 纠错（作为视觉识别的 fallback 或独立使用）
 # ---------------------------------------------------------------------------
 
 def correct_key_signature(
@@ -114,7 +93,7 @@ def correct_key_signature(
     request_id: str = "",
 ) -> KeyCorrectionResult:
     """
-    给定 OCR / Qwen-VL 识别到的原始文字，纠正调号格式。
+    给定 OCR / 视觉模型识别到的原始文字，纠正调号格式。
     LLM 失败时自动回退到正则解析。
     """
     log = get_logger("llm")

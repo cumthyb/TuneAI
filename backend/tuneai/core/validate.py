@@ -2,7 +2,7 @@
 结果校验（三层）：
   Layer 1  规则校验  —— 本地，无 API 调用，快速
   Layer 2  LLM 文本  —— 用 llm 配置中的文本模型检验转调结果的音乐合理性
-  Layer 3  VL 视觉   —— 用 qwen_vl 配置中的多模态模型对照原图交叉验证调号
+  Layer 3  VL 视觉   —— 用 vision_llm 配置中的多模态模型对照原图交叉验证调号
 
 Layer 2/3 失败时只记录 warning，不抛异常，不阻断流程。
 """
@@ -148,17 +148,15 @@ def _llm_validate(score: ScoreIR, request_id: str) -> list[Warning]:
     )
 
     try:
-        from langchain_openai import ChatOpenAI
-        from tuneai.config import get_llm_config
+        from tuneai.core.llm_client import build_chat_openai, get_text_llm_config
 
-        cfg = get_llm_config()
-        llm = ChatOpenAI(
-            model=cfg.get("model", "qwen-plus"),
-            api_key=cfg.get("api_key", "dummy"),
-            base_url=cfg.get("base_url") or None,
-            temperature=0,
-            max_tokens=512,
-            timeout=float(cfg.get("timeout_seconds", 30)),
+        cfg = get_text_llm_config()
+        llm = build_chat_openai(
+            cfg,
+            default_model="text-model",
+            default_temperature=0.0,
+            default_max_tokens=512,
+            default_timeout_seconds=30,
         )
         chain = llm.with_structured_output(_LLMValidationResult, method="function_calling")
         result: _LLMValidationResult = chain.invoke(prompt)
@@ -210,10 +208,11 @@ def _vl_validate(
     """
     log = get_logger("validate")
 
-    from tuneai.config import get_qwen_vl_config
-    cfg = get_qwen_vl_config()
+    from tuneai.core.llm_client import get_vision_llm_config
+
+    cfg = get_vision_llm_config()
     if not cfg.get("api_key"):
-        log.debug("[validate] qwen_vl api_key 未配置，跳过 VL 校验")
+        log.debug("[validate] vision_llm api_key 未配置，跳过 VL 校验")
         return []
 
     # 编码图像
@@ -226,16 +225,15 @@ def _vl_validate(
     )
 
     try:
-        from langchain_openai import ChatOpenAI
         from langchain_core.messages import HumanMessage
+        from tuneai.core.llm_client import build_chat_openai
 
-        llm = ChatOpenAI(
-            model=cfg.get("model", "qwen-vl-max"),
-            api_key=cfg.get("api_key", "dummy"),
-            base_url=cfg.get("base_url") or None,
-            temperature=0,
-            max_tokens=128,
-            timeout=float(cfg.get("timeout_seconds", 30)),
+        llm = build_chat_openai(
+            cfg,
+            default_model="vision-model",
+            default_temperature=0.0,
+            default_max_tokens=128,
+            default_timeout_seconds=30,
         )
         chain = llm.with_structured_output(_VLValidationResult, method="function_calling")
 

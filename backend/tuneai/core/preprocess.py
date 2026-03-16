@@ -1,6 +1,6 @@
 """
 图像预处理（第一步，本地）：灰度化 → 去噪 → 倾斜校正（deskew）。
-输出干净的灰度图，供 Qwen-VL 和阿里 OCR 使用。
+输出干净的灰度图，供视觉 LLM 和 OCR 使用。
 """
 from __future__ import annotations
 

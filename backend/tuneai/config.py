@@ -1,5 +1,5 @@
 """
-从 config.json 加载配置：端口、API Key、Qwen-VL、阿里OCR、流水线、日志等。
+从 config.json 加载配置：端口、API Key、LLM、OCR、流水线、日志等。
 优先使用项目根目录的 config.json，不存在则用 config.example.json；敏感项可由环境变量覆盖。
 """
 import json
@@ -35,14 +35,18 @@ def load_config() -> dict[str, Any]:
             pass
     if level := os.getenv("TUNEAI_LOG_LEVEL"):
         cfg.setdefault("logging", {})["level"] = level
-    if key := os.getenv("TUNEAI_QWEN_VL_API_KEY"):
-        cfg.setdefault("qwen_vl", {})["api_key"] = key
+    if key := os.getenv("TUNEAI_VISION_LLM_API_KEY"):
+        cfg.setdefault("vision_llm", {})["api_key"] = key
     if key := os.getenv("TUNEAI_LLM_API_KEY"):
         cfg.setdefault("llm", {})["api_key"] = key
-    if key_id := os.getenv("TUNEAI_ALIBABA_OCR_KEY_ID"):
-        cfg.setdefault("alibaba_ocr", {})["access_key_id"] = key_id
-    if key_secret := os.getenv("TUNEAI_ALIBABA_OCR_KEY_SECRET"):
-        cfg.setdefault("alibaba_ocr", {})["access_key_secret"] = key_secret
+    if provider := os.getenv("TUNEAI_OCR_PROVIDER"):
+        cfg.setdefault("ocr", {})["provider"] = provider
+    if key_id := os.getenv("TUNEAI_OCR_ACCESS_KEY_ID"):
+        cfg.setdefault("ocr", {}).setdefault("config", {})["access_key_id"] = key_id
+    if key_secret := os.getenv("TUNEAI_OCR_ACCESS_KEY_SECRET"):
+        cfg.setdefault("ocr", {}).setdefault("config", {})["access_key_secret"] = key_secret
+    if endpoint := os.getenv("TUNEAI_OCR_ENDPOINT"):
+        cfg.setdefault("ocr", {}).setdefault("config", {})["endpoint"] = endpoint
     return cfg
 
 
@@ -65,16 +69,16 @@ def get_server_port() -> int:
     return get_config().get("server", {}).get("port", 8000)
 
 
-def get_qwen_vl_config() -> dict[str, Any]:
-    return get_config().get("qwen_vl", {})
+def get_vision_llm_config() -> dict[str, Any]:
+    return get_config().get("vision_llm", {})
 
 
 def get_llm_config() -> dict[str, Any]:
     return get_config().get("llm", {})
 
 
-def get_alibaba_ocr_config() -> dict[str, Any]:
-    return get_config().get("alibaba_ocr", {})
+def get_ocr_config() -> dict[str, Any]:
+    return get_config().get("ocr", {})
 
 
 def get_pipeline_config() -> dict[str, Any]:

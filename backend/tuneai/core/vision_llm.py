@@ -1,12 +1,12 @@
 """
-Qwen-VL 调号识别（第二步 A，线上）。
-通过 LangChain ChatOpenAI（OpenAI-compatible 模式）调用 Qwen-VL，
-输入整张图，仅识别调号，输出结构化结果如 "G"。
+视觉 LLM 调号识别（第二步 A，线上）。
+通过 LangChain ChatOpenAI（OpenAI-compatible 模式）调用视觉模型，
+输入整张图，仅识别调号，输出主音字符串。
 
-配置来源：config.json > qwen_vl
-  base_url     DashScope OpenAI-compatible 端点
-  api_key      DashScope API Key
-  model        视觉模型名称，默认 qwen-vl-max
+配置来源：config.json > vision_llm
+  base_url
+  api_key
+  model
   timeout_seconds
 """
 from __future__ import annotations
@@ -36,7 +36,6 @@ class KeySignatureResult(BaseModel):
     confidence: float = Field(description="置信度 0-1", ge=0.0, le=1.0)
 
 
-# 模块级单例
 _llm_instance = None
 
 
@@ -48,35 +47,32 @@ def _get_llm():
 
 
 def _create_llm():
-    from langchain_openai import ChatOpenAI
-    from tuneai.config import get_qwen_vl_config
+    from tuneai.core.llm_client import build_chat_openai, get_vision_llm_config
 
-    cfg = get_qwen_vl_config()
-    return ChatOpenAI(
-        model=cfg.get("model", "qwen-vl-max"),
-        api_key=cfg.get("api_key", "dummy"),
-        base_url=cfg.get("base_url", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
-        timeout=float(cfg.get("timeout_seconds", 30)),
-        temperature=0,
-        max_tokens=64,
+    cfg = get_vision_llm_config()
+    return build_chat_openai(
+        cfg,
+        default_model="vision-model",
+        default_temperature=0.0,
+        default_max_tokens=64,
+        default_timeout_seconds=30,
     )
 
 
 def recognize_key_signature(image: np.ndarray) -> str:
     """
-    输入灰度图，调用 Qwen-VL 识别调号。
+    输入灰度图，调用视觉 LLM 识别调号。
     返回主音字符串如 "G"、"Bb"、"F#"；识别失败时返回 "C"（降级默认值）。
     """
-    log = get_logger("qwen_vl")
+    log = get_logger("vision_llm")
 
-    from tuneai.config import get_qwen_vl_config
-    cfg = get_qwen_vl_config()
+    from tuneai.core.llm_client import get_vision_llm_config
 
+    cfg = get_vision_llm_config()
     if not cfg.get("api_key"):
-        log.warning("qwen_vl: api_key 未配置，跳过调号识别，使用默认 C 调")
+        log.warning("vision_llm: api_key 未配置，跳过调号识别，使用默认 C 调")
         return "C"
 
-    # 编码图像为 base64 PNG
     _, buf = cv2.imencode(".png", image)
     b64 = base64.b64encode(buf.tobytes()).decode()
 
@@ -94,16 +90,15 @@ def recognize_key_signature(image: np.ndarray) -> str:
 
         response = llm.invoke([message])
         text = (response.content or "").strip()
-        log.debug(f"qwen_vl raw response: {text!r}")
+        log.debug(f"vision_llm raw response: {text!r}")
         return _parse_key(text)
 
     except Exception as e:
-        log.warning(f"qwen_vl 调用失败 ({type(e).__name__}: {e})，使用默认 C 调")
+        log.warning(f"vision_llm 调用失败 ({type(e).__name__}: {e})，使用默认 C 调")
         return "C"
 
 
 def _parse_key(text: str) -> str:
-    """从 Qwen-VL 回复中提取主音，归一化升降号写法。"""
     m = _KEY_RE.search(text)
     if m:
         return _normalize(m.group(1))

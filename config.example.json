@@ -7,27 +7,28 @@
     "build_dir": "frontend/dist",
     "dev_port": 5173
   },
-  "qwen_vl": {
+  "vision_llm": {
     "api_key": "",
-    "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
-    "model": "qwen-vl-max",
+    "base_url": "https://your-openai-compatible-endpoint/v1",
+    "model": "your-vision-model",
     "timeout_seconds": 30
   },
   "llm": {
-    "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    "base_url": "https://your-openai-compatible-endpoint/v1",
     "api_key": "",
-    "model": "qwen-plus",
+    "model": "your-text-model",
     "temperature": 0.1,
     "max_tokens": 1024,
-    "timeout_seconds": 30,
-    "structured_output_method": "function_calling",
-    "disable_parallel_tool_calls": true
+    "timeout_seconds": 30
   },
-  "alibaba_ocr": {
-    "access_key_id": "",
-    "access_key_secret": "",
-    "endpoint": "ocr-api.cn-hangzhou.aliyuncs.com",
-    "timeout_seconds": 15
+  "ocr": {
+    "provider": "aliyun",
+    "config": {
+      "access_key_id": "",
+      "access_key_secret": "",
+      "endpoint": "ocr-api.cn-hangzhou.aliyuncs.com",
+      "timeout_seconds": 15
+    }
   },
   "pipeline": {
     "request_timeout_seconds": 60,

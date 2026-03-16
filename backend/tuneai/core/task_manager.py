@@ -3,7 +3,7 @@
 
 流程：
   1. preprocess   本地：灰度化、去噪、deskew
-  2. parallel     线上：Qwen-VL（调号）+ 阿里OCR（全字符 bbox）并行
+  2. parallel     线上：视觉 LLM（调号）+ OCR（全字符 bbox）并行
   3. filter       本地：过滤保留 0-7 音符 bbox
   4. transpose    本地：十二平均律转调计算
   5. render       本地：像素回写，导出 PNG
@@ -54,7 +54,7 @@ async def run_pipeline(
 
         # ── Stage 2: Parallel online calls ──────────────────────────────────
         t = time.monotonic()
-        from tuneai.core.qwen_vl import recognize_key_signature
+        from tuneai.core.vision_llm import recognize_key_signature
         from tuneai.core.ocr import run_ocr
 
         source_tonic, ocr_chars = await asyncio.gather(

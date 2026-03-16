@@ -21,14 +21,14 @@
 复制 `config.example.json` 为 `config.json`（项目根目录），按需修改：
 
 - **server**：`host`、`port`
-- **api_keys**：`openai`、`anthropic`、`paddleocr`（也可用环境变量 `TUNEAI_OPENAI_API_KEY` 等覆盖）
-- **llm**：`provider`、`model`、`temperature`、`max_tokens`、`timeout_seconds`、`fallback_model`
-- **ocr**：`engine`、`use_gpu`、检测/识别参数
+- **llm**：文本模型配置（OpenAI-compatible），包含 `base_url`、`api_key`、`model`、`temperature`、`max_tokens`、`timeout_seconds`
+- **vision_llm**：视觉模型配置（OpenAI-compatible），包含 `base_url`、`api_key`、`model`、`timeout_seconds`
+- **ocr**：OCR 配置，使用 `provider + config`（例如 `provider=aliyun`，`config` 内配置 `access_key_id`、`access_key_secret`、`endpoint`）
 - **pipeline**：请求超时、临时目录、是否自动清理
 - **logging**：`level`（DEBUG/INFO/WARNING/ERROR）、`format`（json/text）、`request_id_header`
 - **frontend**：`build_dir`（Vite 默认 `frontend/dist`）、`dev_port`（开发服务器端口，默认 5173）
 
-`config.json` 已加入 `.gitignore`，不会提交；敏感项建议用环境变量覆盖。
+`config.json` 已加入 `.gitignore`，不会提交；敏感项建议用环境变量覆盖（如 `TUNEAI_LLM_API_KEY`、`TUNEAI_VISION_LLM_API_KEY`、`TUNEAI_OCR_PROVIDER`、`TUNEAI_OCR_ACCESS_KEY_ID`、`TUNEAI_OCR_ACCESS_KEY_SECRET`）。
 
 ### 前端与部署（方案 A，单端口）
 
