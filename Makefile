@@ -7,7 +7,7 @@
 #   make test      运行所有单元测试（OCR/LLM/Music/API/Pipeline 均 mock 外部引擎）
 #
 # 其他：
-#   make web       启动前端开发服务器（Vite, port 5173）
+#   make web       启动前端开发服务器（Vite, port 来自 config.json）
 #   make install   安装所有依赖（前端 npm + 后端 poetry）
 #   make build     构建前端产物（frontend/dist）
 #   make test-int  运行集成测试（需要真实 OCR 模型 + LLM 服务）
@@ -30,15 +30,18 @@ RUN_ENTRY := backend/run.py
 # 统一后端导入路径：run.py / pytest 都依赖 tuneai 包
 export PYTHONPATH := backend
 
+SERVER_PORT := $(shell $(PYTHON) -c "from tuneai.config import get_server_port; print(get_server_port())" 2>/dev/null || echo unknown)
+FRONTEND_PORT := $(shell $(PYTHON) -c "from tuneai.config import get_frontend_config; print(get_frontend_config().get('dev_port', 'unknown'))" 2>/dev/null || echo unknown)
+
 # ── 默认目标 ────────────────────────────────────────────────────────────────
 
 help:
 	@echo ""
 	@echo "  TuneAI 命令入口"
 	@echo ""
-	@echo "  make dev        启动后端开发服务器  (uvicorn + reload → http://localhost:8000)"
-	@echo "  make prod       启动后端生产服务器  (uvicorn no-reload → http://localhost:8000)"
-	@echo "  make web        启动前端开发服务器  (Vite → http://localhost:5173)"
+	@echo "  make dev        启动后端开发服务器  (uvicorn + reload → http://localhost:$(SERVER_PORT))"
+	@echo "  make prod       启动后端生产服务器  (uvicorn no-reload → http://localhost:$(SERVER_PORT))"
+	@echo "  make web        启动前端开发服务器  (Vite → http://localhost:$(FRONTEND_PORT))"
 	@echo "  make test       运行所有单元测试     (外部引擎均 mock，无需 OCR 模型/LLM 服务)"
 	@echo "  make test-int   运行集成测试         (需要真实 OCR 模型 + LLM 服务)"
 	@echo "  make install    安装所有依赖         (前端 npm + 后端 poetry)"
@@ -49,17 +52,17 @@ help:
 # ── 启动 ────────────────────────────────────────────────────────────────────
 
 dev:
-	@echo "→ 启动后端开发服务器 (http://localhost:8000, reload=on) ..."
-	@echo "  文档: http://localhost:8000/docs"
+	@echo "→ 启动后端开发服务器 (http://localhost:$(SERVER_PORT), reload=on) ..."
+	@echo "  文档: http://localhost:$(SERVER_PORT)/docs"
 	$(PYTHON) $(RUN_ENTRY) --mode dev
 
 prod:
-	@echo "→ 启动后端生产服务器 (http://localhost:8000, reload=off) ..."
-	@echo "  文档: http://localhost:8000/docs"
+	@echo "→ 启动后端生产服务器 (http://localhost:$(SERVER_PORT), reload=off) ..."
+	@echo "  文档: http://localhost:$(SERVER_PORT)/docs"
 	$(PYTHON) $(RUN_ENTRY) --mode prod
 
 web:
-	@echo "→ 启动前端开发服务器 (http://localhost:5173) ..."
+	@echo "→ 启动前端开发服务器 (http://localhost:$(FRONTEND_PORT)) ..."
 	cd $(FRONTEND_DIR) && npm run dev
 
 # ── 测试 ────────────────────────────────────────────────────────────────────
