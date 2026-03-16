@@ -29,6 +29,16 @@ _FLAT_ENCODING: dict[int, tuple[int, str]] = {
 
 _SHARP_KEYS = {"C", "G", "D", "A", "E", "B", "F#", "C#"}
 
+_KEY_LETTER_IDX: dict[str, int] = {
+    "C": 0, "C#": 0,
+    "Db": 1, "D": 1, "D#": 1,
+    "Eb": 2, "E": 2,
+    "F": 3, "F#": 3,
+    "Gb": 4, "G": 4, "G#": 4,
+    "Ab": 5, "A": 5, "A#": 5,
+    "Bb": 6, "B": 6,
+}
+
 
 def key_prefers_sharps(key: str) -> bool:
     return key in _SHARP_KEYS
@@ -72,16 +82,52 @@ def _transpose_note(
     degree: int,
     accidental: str,
     octave_shift: int,
-    delta: int,
-    prefer_sharps: bool,
+    source_key: str,
+    target_key: str,
+    source_pc: int,
+    target_pc: int,
 ) -> tuple[int, str, int]:
+    """Re-key a note: preserve absolute pitch, change notation reference.
+
+    Uses diatonic letter mapping so that enharmonic spelling follows the
+    source key convention (sharp keys produce sharps, flat keys produce flats).
+    """
     if accidental not in ACCIDENTAL_DELTA:
         raise ValueError(f"unsupported accidental: {accidental}")
-    # Apply interval transposition in semitone space, then re-encode.
-    # This matches "transpose by key interval" semantics.
+
     raw_offset = decode_note(degree, accidental, octave_shift)
-    shifted = raw_offset + delta
-    return encode_note(shifted, prefer_sharps)
+    full_shifted = raw_offset + source_pc - target_pc
+
+    letter_off = (_KEY_LETTER_IDX[source_key] - _KEY_LETTER_IDX[target_key]) % 7
+    tgt_deg = (degree - 1 + letter_off) % 7 + 1
+
+    tgt_nat = DEGREE_TO_SEMITONE[tgt_deg]
+    actual_pc = full_shifted % 12
+    diff = (actual_pc - tgt_nat + 12) % 12
+
+    if diff == 0:
+        new_acc = "natural"
+    elif diff == 1:
+        new_acc = "sharp"
+    elif diff == 11:
+        new_acc = "flat"
+    else:
+        return encode_note(full_shifted, key_prefers_sharps(source_key))
+
+    # Simplify cross-letter spellings caused by source accidentals
+    # e.g. 7# → 1 (next octave), 1b → 7 (previous octave)
+    if new_acc == "sharp" and accidental == "sharp":
+        nxt = tgt_deg % 7 + 1
+        if actual_pc == DEGREE_TO_SEMITONE[nxt]:
+            tgt_deg, new_acc = nxt, "natural"
+    elif new_acc == "flat" and accidental == "flat":
+        prv = (tgt_deg - 2) % 7 + 1
+        if actual_pc == DEGREE_TO_SEMITONE[prv]:
+            tgt_deg, new_acc = prv, "natural"
+
+    base = DEGREE_TO_SEMITONE[tgt_deg] + ACCIDENTAL_DELTA[new_acc]
+    new_oct = (full_shifted - base) // 12
+    return tgt_deg, new_acc, new_oct
 
 
 def count_accidentals(score: ScoreIR) -> int:
@@ -99,8 +145,8 @@ def shift_octave(score: ScoreIR, delta: int) -> ScoreIR:
 
 
 def transpose_score_ir(score: ScoreIR, target_key: str) -> ScoreIR:
-    prefer_sharps = key_prefers_sharps(target_key)
-    delta = compute_transpose_delta(score.source_key.tonic, target_key)
+    source_pc = KEY_TO_PC[score.source_key.tonic]
+    target_pc = KEY_TO_PC[target_key]
     new_events = []
     for event in score.events:
         if isinstance(event, NoteEvent):
@@ -108,8 +154,10 @@ def transpose_score_ir(score: ScoreIR, target_key: str) -> ScoreIR:
                 event.degree,
                 event.accidental,
                 event.octave_shift,
-                delta,
-                prefer_sharps,
+                score.source_key.tonic,
+                target_key,
+                source_pc,
+                target_pc,
             )
             new_events.append(
                 event.model_copy(
