@@ -65,10 +65,10 @@
 poetry install
 ```
 
-### 2. 安装前端依赖并构建（npm + Vite）
+### 2. 安装前端依赖（npm）
 
 ```bash
-cd frontend && npm install && npm run build && cd ..
+cd frontend && npm install && cd ..
 ```
 
 ### 3. 启动后端（托管前端构建产物与 API，单端口）
@@ -79,6 +79,8 @@ make dev
 # 生产模式（关闭 reload）
 make prod
 ```
+
+> `make dev` / `make prod` 会自动先执行一次前端构建（等价于先跑 `make build`）。
 
 访问配置的端口（默认 8000）即可使用上传页与 API。
 

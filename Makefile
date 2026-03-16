@@ -2,8 +2,8 @@
 # 用法: make <target>
 #
 # 快速启动：
-#   make dev       启动后端开发服务器（reload on）
-#   make prod      启动后端生产服务器（reload off）
+#   make dev       先构建前端，再启动后端开发服务器（reload on）
+#   make prod      先构建前端，再启动后端生产服务器（reload off）
 #   make test      运行所有单元测试（OCR/LLM/Music/API/Pipeline 均 mock 外部引擎）
 #
 # 其他：
@@ -39,8 +39,8 @@ help:
 	@echo ""
 	@echo "  TuneAI 命令入口"
 	@echo ""
-	@echo "  make dev        启动后端开发服务器  (uvicorn + reload → http://localhost:$(SERVER_PORT))"
-	@echo "  make prod       启动后端生产服务器  (uvicorn no-reload → http://localhost:$(SERVER_PORT))"
+	@echo "  make dev        先构建前端再启动后端 (uvicorn + reload → http://localhost:$(SERVER_PORT))"
+	@echo "  make prod       先构建前端再启动后端 (uvicorn no-reload → http://localhost:$(SERVER_PORT))"
 	@echo "  make web        启动前端开发服务器  (Vite → http://localhost:$(FRONTEND_PORT))"
 	@echo "  make test       运行所有单元测试     (外部引擎均 mock，无需 OCR 模型/LLM 服务)"
 	@echo "  make test-int   运行集成测试         (需要真实 OCR 模型 + LLM 服务)"
@@ -51,12 +51,12 @@ help:
 
 # ── 启动 ────────────────────────────────────────────────────────────────────
 
-dev:
+dev: build
 	@echo "→ 启动后端开发服务器 (http://localhost:$(SERVER_PORT), reload=on) ..."
 	@echo "  文档: http://localhost:$(SERVER_PORT)/docs"
 	$(PYTHON) $(RUN_ENTRY) --mode dev
 
-prod:
+prod: build
 	@echo "→ 启动后端生产服务器 (http://localhost:$(SERVER_PORT), reload=off) ..."
 	@echo "  文档: http://localhost:$(SERVER_PORT)/docs"
 	$(PYTHON) $(RUN_ENTRY) --mode prod
