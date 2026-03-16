@@ -99,7 +99,6 @@ async def run_pipeline(image_bytes: bytes, target_key: str, request_id: str) -> 
         log.debug(f"[4/7] transpose done ({_ms(t)}ms): {source_tonic} -> {target_key}")
 
         t = time.monotonic()
-        t = time.monotonic()
         warnings.extend(validate_score_rules(transposed))
         
         llm_val_warnings, vl_val_warnings = await asyncio.gather(
