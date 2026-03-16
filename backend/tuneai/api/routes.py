@@ -32,41 +32,28 @@ _ALLOWED_CONTENT_TYPES = {"image/png", "image/jpeg", "image/jpg", "image/webp"}
 _ALLOWED_FORMAT_HINT = "PNG、JPG 或 WEBP"
 
 
-def _list_providers_with_llm() -> list[str]:
+def _list_providers_for(getter) -> list[str]:
     providers: list[str] = []
     for p in list_registered_providers():
         try:
-            cfg = get_llm_config(p)
+            cfg = getter(p)
         except ValueError:
             continue
-        if isinstance(cfg, dict) and cfg:
+        if str(cfg.get("api_key", "")).strip():
             providers.append(p)
     return sorted(set(providers))
+
+
+def _list_providers_with_llm() -> list[str]:
+    return _list_providers_for(get_llm_config)
 
 
 def _list_providers_with_vision_llm() -> list[str]:
-    providers: list[str] = []
-    for p in list_registered_providers():
-        try:
-            cfg = get_vision_llm_config(p)
-        except ValueError:
-            continue
-        if isinstance(cfg, dict) and cfg:
-            providers.append(p)
-    return sorted(set(providers))
+    return _list_providers_for(get_vision_llm_config)
 
 
 def _list_providers_with_ocr() -> list[str]:
-    providers: list[str] = []
-    for p in list_registered_providers():
-        try:
-            cfg = get_ocr_config(p)
-        except ValueError:
-            continue
-        api_key = str(cfg.get("api_key", "")).strip()
-        if api_key:
-            providers.append(p)
-    return sorted(set(providers))
+    return _list_providers_for(get_ocr_config)
 
 
 def _pick_default_provider(candidates: list[str], preferred: str, capability: str) -> str:

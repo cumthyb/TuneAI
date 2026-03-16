@@ -7,7 +7,8 @@ import cv2
 import numpy as np
 from pydantic import BaseModel, Field
 
-from tuneai.core.adapters.llm_client import build_chat_openai, get_vision_llm_config
+from tuneai.config import get_vision_llm_config
+from tuneai.core.adapters.llm_client import build_chat_openai
 from tuneai.logging_config import get_logger
 from tuneai.schemas.request_response import Warning
 from tuneai.schemas.score_ir import ScoreIR

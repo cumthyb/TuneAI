@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 
 from tuneai.config import get_ocr_config
-from tuneai.core.adapters.ocr.providers.multimodal import run_multimodal_ocr
+from tuneai.core.adapters.ocr.multimodal import run_multimodal_ocr
 from tuneai.core.adapters.ocr.types import OcrChar
 
 

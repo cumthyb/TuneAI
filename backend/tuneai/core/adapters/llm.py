@@ -4,7 +4,8 @@ import json
 
 from pydantic import BaseModel, Field
 
-from tuneai.core.adapters.llm_client import build_chat_openai, get_text_llm_config
+from tuneai.config import get_llm_config
+from tuneai.core.adapters.llm_client import build_chat_openai
 from tuneai.logging_config import get_logger
 from tuneai.schemas.request_response import Warning
 from tuneai.schemas.score_ir import NoteEvent, ScoreIR
@@ -27,7 +28,7 @@ _llm_instances: dict[tuple[str, str, str], object] = {}
 
 
 def _get_llm(provider: str):
-    cfg = get_text_llm_config(provider)
+    cfg = get_llm_config(provider)
     model = str(cfg.get("model")).strip()
     base_url = str(cfg.get("base_url")).strip()
     if not provider or not model or not base_url:
@@ -82,7 +83,7 @@ class LLMValidationResult(BaseModel):
 
 def validate_score_with_llm(score: ScoreIR, request_id: str, provider: str) -> list[Warning]:
     log = get_logger("validate_llm")
-    cfg = get_text_llm_config(provider)
+    cfg = get_llm_config(provider)
     api_key = cfg.get("api_key")
     if not isinstance(api_key, str) or not api_key.strip():
         raise ValueError("llm.api_key must be configured for validate_score")

@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(python:*)",
-      "Bash(poetry run:*)"
+      "Bash(poetry run:*)",
+      "Bash(.venv/bin/python -m pytest tests/ -x -q --tb=short 2>&1 | tail -20)"
     ]
   }
 }

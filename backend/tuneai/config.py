@@ -134,7 +134,6 @@ def load_config() -> dict[str, Any]:
         _overlay_provider_section(cfg, provider=vision_provider, section="vision_llm", updates={"model": model})
 
     ocr_updates = {
-        "runner": os.getenv("TUNEAI_OCR_RUNNER"),
         "api_key": os.getenv("TUNEAI_OCR_API_KEY"),
         "base_url": os.getenv("TUNEAI_OCR_BASE_URL"),
         "model": os.getenv("TUNEAI_OCR_MODEL"),
@@ -227,10 +226,6 @@ def get_server_port() -> int:
     return port
 
 
-def get_frontend_mode() -> str:
-    return _require_string(get_frontend_config(), "mode")
-
-
 def get_frontend_build_dir() -> Path:
     d = _require_string(get_frontend_config(), "build_dir")
     return _CONFIG_DIR / d
@@ -241,11 +236,6 @@ def get_logs_dir() -> Path:
     p = _CONFIG_DIR / d
     p.mkdir(parents=True, exist_ok=True)
     return p
-
-
-def get_samples_dir() -> Path:
-    d = _require_string(get_pipeline_config(), "samples_dir")
-    return _CONFIG_DIR / d
 
 
 def get_outputs_dir() -> Path:

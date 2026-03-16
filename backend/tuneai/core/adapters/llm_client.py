@@ -3,12 +3,6 @@ from __future__ import annotations
 import importlib
 from typing import Any
 
-from tuneai.config import (
-    get_llm_config as get_llm_config_from_registry,
-    get_vision_llm_config as get_vision_llm_config_from_registry,
-    list_registered_providers,
-)
-
 
 def _load_client_class(path: str):
     module_name, sep, class_name = path.rpartition(".")
@@ -46,10 +40,6 @@ def _required_object(cfg: dict[str, Any], key: str) -> dict[str, Any]:
     return value
 
 
-def list_supported_providers() -> list[str]:
-    return list_registered_providers()
-
-
 def build_chat_openai(cfg: dict[str, Any]) -> Any:
     client_cls = _resolve_client_class(cfg)
     client_kwargs = _required_object(cfg, "client_kwargs")
@@ -71,15 +61,3 @@ def build_chat_openai(cfg: dict[str, Any]) -> Any:
         kwargs["disabled_params"] = {"parallel_tool_calls": None}
     kwargs.update(client_kwargs)
     return client_cls(**kwargs)
-
-
-def get_text_llm_config(provider: str) -> dict[str, Any]:
-    cfg = dict(get_llm_config_from_registry(provider))
-    cfg["provider"] = provider
-    return cfg
-
-
-def get_vision_llm_config(provider: str) -> dict[str, Any]:
-    cfg = dict(get_vision_llm_config_from_registry(provider))
-    cfg["provider"] = provider
-    return cfg

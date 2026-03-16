@@ -46,13 +46,11 @@ class TestConfigEnvOverrides:
         monkeypatch.setattr(config_module, "_find_config", lambda: Path("/tmp/config.json"))
         monkeypatch.setattr(config_module, "_load_json", lambda _p: dict(base_cfg))
         monkeypatch.setenv("TUNEAI_OCR_PROVIDER", "qwen")
-        monkeypatch.setenv("TUNEAI_OCR_RUNNER", "pkg.mod:run")
         monkeypatch.setenv("TUNEAI_OCR_API_KEY", "ocr_key")
         monkeypatch.setenv("TUNEAI_OCR_BASE_URL", "https://ocr.example.com/v1")
         monkeypatch.setenv("TUNEAI_OCR_MODEL", "glm-4.6v")
 
         cfg = config_module.load_config()
-        assert cfg["providers"]["qwen"]["ocr"]["runner"] == "pkg.mod:run"
         assert cfg["providers"]["qwen"]["ocr"]["api_key"] == "ocr_key"
         assert cfg["providers"]["qwen"]["ocr"]["base_url"] == "https://ocr.example.com/v1"
         assert cfg["providers"]["qwen"]["ocr"]["model"] == "glm-4.6v"
