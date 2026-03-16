@@ -21,15 +21,28 @@
 复制 `config.example.json` 为 `config.json`（项目根目录），按需修改：
 
 - **server**：`host`、`port`
-- **llm**：文本模型配置（可纯配置切换 Qwen/GLM），包含 `provider`、`base_url`、`api_key`、`model`、`client_class`、`client_kwargs`、`model_kwargs`、`extra_body`、`temperature`、`max_tokens`、`timeout_seconds`
-- **vision_llm**：视觉模型配置（可纯配置切换 Qwen/GLM），字段同上（通常不需要 `temperature`）
-- **ocr**：OCR 配置位于 `providers.<name>.ocr`，其中 `runner` 为 `module:function` 动态入口（例如 `tuneai.core.adapters.ocr.providers.qwen:run_qwen_ocr`、`tuneai.core.adapters.ocr.providers.glm:run_glm_ocr`）
-- 前端提交时支持分别选择 `llm_provider`、`vision_llm_provider`、`ocr_provider`，默认值来自 `/api/meta` 的 `default_*_provider`
-- **pipeline**：请求超时、临时目录、是否自动清理
-- **logging**：`level`（DEBUG/INFO/WARNING/ERROR）、`format`（json/text）、`request_id_header`
-- **frontend**：`build_dir`（Vite 默认 `frontend/dist`）、`dev_port`（开发服务器端口，默认 5173）
+- **frontend**：`build_dir`（Vite 默认 `frontend/dist`）、`dev_port`（开发服务器端口，默认 5173）、`mode`（`build` 时由后端托管前端静态资源）
+- **provider_policy**：全局默认 provider，例如：
 
-`config.json` 已加入 `.gitignore`，不会提交；敏感项建议用环境变量覆盖（如 `TUNEAI_LLM_API_KEY`、`TUNEAI_LLM_PROVIDER`、`TUNEAI_LLM_MODEL`、`TUNEAI_VISION_LLM_API_KEY`、`TUNEAI_VISION_LLM_PROVIDER`、`TUNEAI_VISION_LLM_MODEL`、`TUNEAI_OCR_PROVIDER`、`TUNEAI_OCR_RUNNER`、`TUNEAI_OCR_API_KEY`、`TUNEAI_OCR_BASE_URL`、`TUNEAI_OCR_MODEL`）。
+  ```json
+  "provider_policy": {
+    "default_provider": "glm"
+  }
+  ```
+
+- **providers**：统一的 provider 注册表，每个 key 是 provider 名（如 `glm`、`qwen`），内部按能力拆分：
+  - `llm`：文本模型配置，包含 `api_key`、`base_url`、`model`、`temperature`、`max_tokens`、`timeout_seconds`、`client_class`、`client_kwargs`、`model_kwargs`、`extra_body`、`disable_parallel_tool_calls` 等。
+  - `vision_llm`：视觉模型配置（可与 `llm` 共用 OpenAI-compatible 接口），字段类似但通常不需要 `temperature`。
+  - `ocr`：OCR 配置，其中 `runner` 为 `module:function` 动态入口（例如 `tuneai.core.adapters.ocr.providers.qwen:run_qwen_ocr`、`tuneai.core.adapters.ocr.providers.glm:run_glm_ocr`），其余字段如 `api_key`、`base_url`、`model`、`timeout_seconds`、`max_tokens`。
+- **pipeline**：`request_timeout_seconds`（单请求超时）、`max_image_size_mb`（最大图片大小）、`outputs_dir`、`samples_dir`、`cleanup_after_response`（响应后是否清理临时文件）。
+- **logging**：`level`（DEBUG/INFO/WARNING/ERROR）、`format`（json/text）、`request_id_header`、`log_dir`、`log_file`、`rotation`、`retention`。
+
+`config.json` 已加入 `.gitignore`，不会提交；敏感项和差异化配置建议通过环境变量覆盖，例如：
+
+- 文本 LLM：`TUNEAI_LLM_API_KEY`、`TUNEAI_LLM_BASE_URL`、`TUNEAI_LLM_MODEL`、`TUNEAI_LLM_PROVIDER`
+- 视觉 LLM：`TUNEAI_VISION_LLM_API_KEY`、`TUNEAI_VISION_LLM_BASE_URL`、`TUNEAI_VISION_LLM_MODEL`、`TUNEAI_VISION_LLM_PROVIDER`
+- OCR：`TUNEAI_OCR_API_KEY`、`TUNEAI_OCR_BASE_URL`、`TUNEAI_OCR_MODEL`、`TUNEAI_OCR_PROVIDER`、`TUNEAI_OCR_RUNNER`
+- 统一默认 provider：`TUNEAI_PROVIDER`（覆盖 `provider_policy.default_provider`）
 
 ### 前端与部署（方案 A，单端口）
 
