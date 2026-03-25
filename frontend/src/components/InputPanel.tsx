@@ -13,8 +13,6 @@ interface InputPanelProps {
   onFileChange: (file: File | null) => void
 }
 
-const labelBase = 'shrink-0 border-b border-indigo-500/20 px-4 py-3 text-sm font-semibold tracking-wide'
-
 export default function InputPanel({
   selectedFile,
   leftImageUrl,
@@ -26,32 +24,42 @@ export default function InputPanel({
   const [viewMode, setViewMode] = useState<'image' | 'json'>('image')
 
   return (
-    <div className="ai-card flex flex-col overflow-hidden rounded-2xl lg:min-h-[60vh] neon-box">
-      {/* 标题栏 */}
-      <div className={`${labelBase} flex items-center justify-between gap-2 bg-gradient-to-r from-indigo-500/10 via-indigo-500/5 to-transparent text-indigo-200`}>
+    <div className="group relative flex flex-col overflow-hidden rounded-2xl lg:min-h-[60vh] border border-cyan-500/20 bg-gradient-to-br from-slate-950/90 via-slate-900/80 to-indigo-950/60 backdrop-blur-xl">
+      {/* 边框发光效果 */}
+      <div className="absolute inset-0 rounded-2xl opacity-0 transition-opacity duration-500 group-hover:opacity-100">
+        <div className="absolute inset-0 rounded-2xl border border-cyan-400/30 shadow-lg shadow-cyan-500/10" />
+      </div>
+
+      {/* 顶部标签栏 */}
+      <div className="relative flex items-center justify-between gap-2 border-b border-cyan-500/20 bg-gradient-to-r from-cyan-500/10 via-transparent to-transparent px-4 py-3">
+        {/* 标签 */}
         <div className="flex items-center gap-3">
-          <div className="flex h-6 w-6 items-center justify-center rounded bg-indigo-500/20">
-            <svg className="h-4 w-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-500/20 to-indigo-500/20 shadow-inner">
+            <svg className="h-4 w-4 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
           </div>
           <div>
-            <span className="font-semibold">INPUT_01</span>
+            <span className="font-mono text-sm font-bold uppercase tracking-widest text-cyan-200">
+              Input
+            </span>
             {selectedFile && (
-              <span className="ml-2 font-mono text-xs text-indigo-400/60">
-                {selectedFile.name}
+              <span className="ml-3 font-mono text-xs text-cyan-400/50">
+                {selectedFile.name.length > 20
+                  ? selectedFile.name.slice(0, 17) + '...'
+                  : selectedFile.name}
               </span>
             )}
           </div>
         </div>
-        
+
         <div className="flex items-center gap-2">
-          {/* 视图切换按钮 */}
+          {/* 视图切换 */}
           {isSuccess && scoreJson && (
             <button
               type="button"
               onClick={() => setViewMode(prev => prev === 'image' ? 'json' : 'image')}
-              className="inline-flex items-center gap-1.5 rounded border border-indigo-500/30 bg-slate-900/60 px-2 py-1 text-[10px] font-medium text-indigo-300 transition-all hover:border-indigo-400/50 hover:bg-indigo-500/10"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-500/30 bg-slate-900/80 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-cyan-300 transition-all hover:border-cyan-400/50 hover:bg-cyan-500/10 hover:text-cyan-200"
             >
               {viewMode === 'image' ? (
                 <>
@@ -65,19 +73,23 @@ export default function InputPanel({
                   <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
-                  <span className="hidden sm:inline">IMG</span>
+                  <span className="hidden sm:inline">Image</span>
                 </>
               )}
             </button>
           )}
-          
-          <span className="font-mono text-xs text-indigo-500/40">SRC</span>
-          
+
+          {/* 状态徽章 */}
+          <span className="font-mono text-[10px] uppercase tracking-wider text-cyan-500/40">
+            Source
+          </span>
+
+          {/* 清除按钮 */}
           {selectedFile && !isLoading && (
             <button
               type="button"
               onClick={() => onFileChange(null)}
-              className="rounded-lg p-1.5 text-slate-400 transition-all hover:bg-white/10 hover:text-white"
+              className="rounded-lg p-1.5 text-slate-500 transition-all hover:bg-red-500/10 hover:text-red-400"
               title="清除"
               aria-label="清除已选文件"
             >
@@ -90,13 +102,13 @@ export default function InputPanel({
       </div>
 
       {/* 内容区域 */}
-      <div className="relative flex min-h-[320px] flex-1 flex-col bg-slate-950/50">
-        {/* 角落装饰 */}
-        <div className="absolute left-2 top-2 h-3 w-3 border-l border-t border-indigo-500/30" />
-        <div className="absolute right-2 top-2 h-3 w-3 border-r border-t border-indigo-500/30" />
-        <div className="absolute bottom-2 left-2 h-3 w-3 border-b border-l border-indigo-500/30" />
-        <div className="absolute bottom-2 right-2 h-3 w-3 border-b border-r border-indigo-500/30" />
-        
+      <div className="relative flex min-h-[320px] flex-1 flex-col bg-slate-950/40">
+        {/* 角落装饰 - 科技边框 */}
+        <div className="absolute left-3 top-3 h-4 w-4 border-l-2 border-t-2 border-cyan-500/30 transition-colors group-hover:border-cyan-400/50" />
+        <div className="absolute right-3 top-3 h-4 w-4 border-r-2 border-t-2 border-cyan-500/30 transition-colors group-hover:border-cyan-400/50" />
+        <div className="absolute bottom-3 left-3 h-4 w-4 border-b-2 border-l-2 border-cyan-500/30 transition-colors group-hover:border-cyan-400/50" />
+        <div className="absolute bottom-3 right-3 h-4 w-4 border-b-2 border-r-2 border-cyan-500/30 transition-colors group-hover:border-cyan-400/50" />
+
         {isSuccess && scoreJson && viewMode === 'json' ? (
           <ScoreView scoreJson={scoreJson} className="flex-1" />
         ) : leftImageUrl ? (

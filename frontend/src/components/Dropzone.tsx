@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useRef, useState, useEffect } from 'react'
 
 const ACCEPT = 'image/png,image/jpeg,image/jpg'
 
@@ -7,9 +7,66 @@ export interface DropzoneProps {
   disabled?: boolean
 }
 
+// 音符装饰组件
+function MusicNote({ className = '', style = {} }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg className={className} style={style} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
+    </svg>
+  )
+}
+
+// 音波动画组件
+function Waveform({ active = false }: { active?: boolean }) {
+  const [bars, setBars] = useState([0.3, 0.5, 0.8, 0.4, 0.6, 0.7, 0.5, 0.3])
+
+  useEffect(() => {
+    if (!active) {
+      setBars([0.3, 0.5, 0.8, 0.4, 0.6, 0.7, 0.5, 0.3])
+      return
+    }
+    const interval = setInterval(() => {
+      setBars(prev => prev.map(() => 0.2 + Math.random() * 0.8))
+    }, 80)
+    return () => clearInterval(interval)
+  }, [active])
+
+  return (
+    <div className="flex items-center justify-center gap-0.5">
+      {bars.map((height, i) => (
+        <div
+          key={i}
+          className="w-1.5 bg-gradient-to-t from-cyan-400 to-indigo-400 rounded-full transition-all duration-75"
+          style={{ height: `${height * 24}px` }}
+        />
+      ))}
+    </div>
+  )
+}
+
+// 五线谱装饰
+function StaffLines({ className = '' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 100 40" fill="none" stroke="currentColor" strokeWidth="0.5">
+      {[5, 12, 19, 26, 33].map((y) => (
+        <line key={y} x1="0" y1={y} x2="100" y2={y} />
+      ))}
+    </svg>
+  )
+}
+
 export default function Dropzone({ onFileSelect, disabled }: DropzoneProps) {
   const [dragOver, setDragOver] = useState(false)
+  const [pulseActive, setPulseActive] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // 脉冲动画
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPulseActive(p => !p)
+    }, 2000)
+    return () => clearInterval(interval)
+  }, [])
 
   const onDrop = useCallback(
     (e: React.DragEvent) => {
@@ -50,35 +107,55 @@ export default function Dropzone({ onFileSelect, disabled }: DropzoneProps) {
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       className={`
-        group relative flex h-full min-h-0 flex-col items-center justify-center overflow-hidden rounded-xl border border-dashed p-8 text-center transition-all duration-300
+        group relative flex h-full min-h-0 flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed p-8 text-center transition-all duration-500
         ${dragOver
-          ? 'border-indigo-400 bg-indigo-500/10 shadow-lg shadow-indigo-500/30'
-          : 'border-slate-700/50 bg-slate-950/30 hover:border-indigo-500/40 hover:bg-slate-900/40'}
+          ? 'border-cyan-400 bg-gradient-to-br from-cyan-500/15 to-indigo-500/15 shadow-2xl shadow-cyan-500/30 scale-[1.02]'
+          : 'border-slate-700/50 bg-slate-950/20 hover:border-indigo-500/50 hover:bg-gradient-to-br hover:from-slate-900/40 hover:to-indigo-950/30'}
         ${disabled ? 'pointer-events-none opacity-40' : 'cursor-pointer'}
       `}
     >
-      {/* AI风格网格背景 */}
+      {/* 背景网格 - 细密科技感 */}
       <div
         className={`
-          absolute inset-0 opacity-30 transition-opacity duration-300
-          ${dragOver ? 'opacity-50' : 'opacity-30'}
+          absolute inset-0 transition-opacity duration-500
+          ${dragOver ? 'opacity-40' : 'opacity-20'}
         `}
         style={{
           backgroundImage: `
-            linear-gradient(rgba(99, 102, 241, 0.1) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(99, 102, 241, 0.1) 1px, transparent 1px)
+            linear-gradient(rgba(6, 182, 212, 0.08) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(6, 182, 212, 0.08) 1px, transparent 1px)
           `,
-          backgroundSize: '20px 20px',
+          backgroundSize: '24px 24px',
         }}
       />
 
+      {/* 五线谱装饰 - 音乐感 */}
+      <div className={`absolute inset-x-8 top-8 transition-opacity duration-500 ${dragOver ? 'opacity-60' : 'opacity-15'}`}>
+        <StaffLines className="w-full text-indigo-400/50" />
+        {/* 五线谱上的音符 */}
+        <MusicNote
+          className="absolute left-[20%] top-2 h-4 w-4 text-cyan-400"
+          style={{ filter: 'drop-shadow(0 0 4px rgba(6, 182, 212, 0.5))' }}
+        />
+        <MusicNote
+          className="absolute left-[50%] top-0 h-5 w-5 text-indigo-400"
+          style={{ filter: 'drop-shadow(0 0 6px rgba(99, 102, 241, 0.5))' }}
+        />
+        <MusicNote
+          className="absolute left-[75%] top-3 h-3 w-3 text-violet-400"
+          style={{ filter: 'drop-shadow(0 0 4px rgba(139, 92, 246, 0.5))' }}
+        />
+      </div>
+
       {/* 扫描线效果 */}
-      <div className={`
-        absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent
-        transition-opacity duration-300
-        ${dragOver ? 'opacity-100' : 'opacity-0'}
-        animate-[scan_2s_linear_infinite]
-      `} />
+      <div
+        className={`
+          absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-400/70 to-transparent
+          transition-opacity duration-300
+          ${dragOver ? 'opacity-100' : 'opacity-0'}
+        `}
+        style={{ animation: 'scan 2s linear infinite' }}
+      />
 
       <input
         ref={inputRef}
@@ -90,49 +167,145 @@ export default function Dropzone({ onFileSelect, disabled }: DropzoneProps) {
         aria-hidden
       />
 
-      {/* AI图标 */}
-      <div className={`
-        relative mb-4 rounded-xl border bg-slate-900/80 p-4 backdrop-blur-sm
-        transition-all duration-300
-        ${dragOver ? 'scale-110 border-indigo-400/50 bg-indigo-950/50 shadow-lg shadow-indigo-500/30' : 'border-slate-700/50 group-hover:border-indigo-500/30'}
-      `}>
-        <svg
+      {/* 中央图标区域 */}
+      <div
+        className={`
+          relative mb-6 flex flex-col items-center justify-center
+          transition-all duration-500
+          ${dragOver ? 'scale-110' : 'group-hover:scale-105'}
+        `}
+      >
+        {/* 外围光环 */}
+        <div
           className={`
-            h-10 w-10 transition-colors duration-300
-            ${dragOver ? 'text-indigo-400' : 'text-slate-600 group-hover:text-indigo-500'}
+            absolute inset-0 rounded-2xl blur-xl transition-all duration-500
+            ${dragOver ? 'bg-cyan-500/30 scale-110' : 'bg-indigo-500/10 scale-100'}
           `}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
+        />
+
+        {/* 旋转边框 */}
+        <div
+          className="absolute inset-0 rounded-2xl p-px"
+          style={{
+            background: dragOver
+              ? 'conic-gradient(from 0deg, #06b6d4, #6366f1, #8b5cf6, #06b6d4)'
+              : 'conic-gradient(from 0deg, #475569, #334155, #475569)',
+            animation: 'spin 3s linear infinite',
+          }}
+        />
+
+        {/* 图标容器 */}
+        <div
+          className={`
+            relative flex h-20 w-20 items-center justify-center rounded-2xl
+            bg-gradient-to-br from-slate-900 via-slate-950 to-black
+            transition-all duration-500
+            ${dragOver ? 'border border-cyan-400/50' : 'border border-slate-700/50'}
+          `}
         >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-        </svg>
-        {/* 角落科技装饰 */}
-        <div className="absolute -left-1 -top-1 h-2 w-2 border-l-2 border-t-2 border-indigo-500/50" />
-        <div className="absolute -right-1 -top-1 h-2 w-2 border-r-2 border-t-2 border-indigo-500/50" />
-        <div className="absolute -bottom-1 -left-1 h-2 w-2 border-b-2 border-l-2 border-indigo-500/50" />
-        <div className="absolute -bottom-1 -right-1 h-2 w-2 border-b-2 border-r-2 border-indigo-500/50" />
+          {/* 音波图标 */}
+          <Waveform active={dragOver} />
+
+          {/* 音符装饰 */}
+          <MusicNote
+            className={`
+              absolute -right-2 -top-2 h-5 w-5 transition-all duration-300
+              ${dragOver ? 'text-cyan-400 scale-110' : 'text-slate-600 scale-100'}
+            `}
+            style={{
+              filter: dragOver ? 'drop-shadow(0 0 8px rgba(6, 182, 212, 0.6))' : 'none',
+            }}
+          />
+        </div>
+
+        {/* 脉冲点 */}
+        <div className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center">
+          <span
+            className={`
+              absolute inline-flex h-full w-full rounded-full
+              ${dragOver ? 'bg-cyan-400' : 'bg-indigo-500'}
+              ${pulseActive ? 'animate-ping' : ''}
+              opacity-75
+            `}
+          />
+          <span
+            className={`
+              relative inline-flex h-2 w-2 rounded-full
+              ${dragOver ? 'bg-cyan-300' : 'bg-indigo-400'}
+            `}
+          />
+        </div>
       </div>
 
-      <p className={`
-        relative font-mono text-sm tracking-wide transition-colors duration-300
-        ${dragOver ? 'text-indigo-300' : 'text-slate-400 group-hover:text-slate-300'}
-      `}>
-        &lt; DROP_SHEET_HERE /&gt;
-      </p>
-      <p className={`
-        relative mt-2 font-mono text-[10px] transition-colors duration-300
-        ${dragOver ? 'text-indigo-400/80' : 'text-slate-600 group-hover:text-slate-500'}
-      `}>
-        [ ACCEPT: PNG, JPG | MAX: 20MB ]
-      </p>
+      {/* 文字标签 */}
+      <div className="space-y-2">
+        <p
+          className={`
+            relative font-mono text-base font-bold tracking-wider transition-colors duration-300
+            ${dragOver ? 'text-cyan-300' : 'text-slate-300 group-hover:text-white'}
+          `}
+        >
+          {dragOver ? (
+            'RELEASE TO UPLOAD'
+          ) : (
+            <>
+              <span className="text-slate-500">{'<'}</span>
+              <span className="text-indigo-400">DROP_SCORE</span>
+              <span className="text-slate-500">_HERE</span>
+              <span className="text-slate-500">/</span>
+              <span className="text-cyan-500">{'>'}</span>
+            </>
+          )}
+        </p>
 
-      {/* 底部状态指示器 */}
-      <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1">
-        <span className={`h-1 w-1 rounded-full transition-colors duration-300 ${dragOver ? 'bg-indigo-400' : 'bg-slate-700'}`} />
-        <span className={`h-1 w-1 rounded-full transition-colors duration-300 ${dragOver ? 'bg-indigo-400' : 'bg-slate-700'} delay-75`} />
-        <span className={`h-1 w-1 rounded-full transition-colors duration-300 ${dragOver ? 'bg-indigo-400' : 'bg-slate-700'} delay-150`} />
+        <div className="flex items-center justify-center gap-3">
+          <p
+            className={`
+              relative font-mono text-[10px] tracking-widest transition-colors duration-300
+              ${dragOver ? 'text-cyan-400/80' : 'text-slate-600 group-hover:text-slate-500'}
+            `}
+          >
+            ACCEPT: PNG, JPG
+          </p>
+          <span className="text-slate-700">|</span>
+          <p
+            className={`
+              relative font-mono text-[10px] tracking-widest transition-colors duration-300
+              ${dragOver ? 'text-cyan-400/80' : 'text-slate-600 group-hover:text-slate-500'}
+            `}
+          >
+            MAX: 20MB
+          </p>
+        </div>
       </div>
+
+      {/* 底部装饰 - 钢琴键风格 */}
+      <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-0.5">
+        {Array.from({ length: 9 }).map((_, i) => (
+          <div
+            key={i}
+            className={`
+              h-1.5 rounded-sm transition-all duration-300
+              ${i % 3 === 0
+                ? 'w-2 bg-gradient-to-t from-cyan-500/60 to-indigo-500/60'
+                : 'w-1.5 bg-gradient-to-t from-slate-600/40 to-slate-700/40'}
+              ${dragOver
+                ? i % 3 === 0
+                  ? 'bg-gradient-to-t from-cyan-400 to-indigo-400 shadow-lg shadow-cyan-500/30'
+                  : 'bg-gradient-to-t from-slate-500 to-slate-600'
+                : ''}
+            `}
+          />
+        ))}
+      </div>
+
+      {/* CSS 动画 */}
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   )
 }
