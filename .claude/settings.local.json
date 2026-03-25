@@ -9,7 +9,9 @@
       "Bash(cd:*)",
       "Bash(npx tsc:*)",
       "Bash(.venv/bin/python -m pytest tests/ -x -q 2>&1 | grep \"ValueError\" | head -5)",
-      "Bash(.venv/bin/python -m pytest tests/ -x -q 2>&1 | tail -5)"
+      "Bash(.venv/bin/python -m pytest tests/ -x -q 2>&1 | tail -5)",
+      "Bash(bash \"/Users/hyb/.claude/skills/pua-loop/scripts/setup-pua-loop.sh\" \"/p7 你有没有按照p10的架构文档，把你里面的task1-task5 都落地实现完\" --max-iterations 30 --completion-promise \"LOOP_DONE\")",
+      "Bash(make test:*)"
     ]
   }
 }

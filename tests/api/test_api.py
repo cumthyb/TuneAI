@@ -220,11 +220,9 @@ class TestProviderRouting:
             resp = client.get("/api/meta")
         assert resp.status_code == 200
         body = resp.json()
-        assert body["providers"] == ["glm"]
         assert body["llm_providers"] == ["glm", "qwen"]
         assert body["vision_llm_providers"] == ["glm", "qwen"]
         assert body["ocr_providers"] == ["glm"]
-        assert body["default_provider"] == "glm"
         assert body["default_llm_provider"] == "qwen"
         assert body["default_vision_llm_provider"] == "qwen"
         assert body["default_ocr_provider"] == "glm"
@@ -239,11 +237,9 @@ class TestProviderRouting:
             resp = client.get("/api/meta")
         assert resp.status_code == 200
         body = resp.json()
-        assert body["providers"] == ["glm", "qwen"]
         assert body["llm_providers"] == ["glm", "qwen"]
         assert body["vision_llm_providers"] == ["glm", "qwen"]
         assert body["ocr_providers"] == ["glm", "qwen"]
-        assert body["default_provider"] == "glm"
         assert body["default_llm_provider"] == "glm"
         assert body["default_vision_llm_provider"] == "glm"
         assert body["default_ocr_provider"] == "glm"
@@ -259,7 +255,7 @@ class TestProviderRouting:
         assert resp.status_code == 200
         body = resp.json()
         assert body["ocr_providers"] == ["glm"]
-        assert body["providers"] == ["glm"]
+        assert body["llm_providers"] == ["glm", "qwen"]
 
     def test_invalid_unified_provider_returns_400(self, client, minimal_png_bytes):
         with (

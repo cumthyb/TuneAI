@@ -24,25 +24,18 @@ class MeasureCorrectionResult(BaseModel):
     notes: str = Field(description="补充说明")
 
 
-_llm_instances: dict[tuple[str, str, str], object] = {}
-
-
-def _get_llm(provider: str):
+def _build_llm(provider: str):
+    """根据 provider 创建 LLM client 实例（每次调用创建新实例，无缓存）。"""
     cfg = get_llm_config(provider)
     model = str(cfg.get("model")).strip()
     base_url = str(cfg.get("base_url")).strip()
     if not provider or not model or not base_url:
         raise ValueError("llm provider/model/base_url must be configured")
-    key = (provider, model, base_url)
-    llm = _llm_instances.get(key)
-    if llm is None:
-        llm = build_chat_openai(cfg)
-        _llm_instances[key] = llm
-    return llm
+    return build_chat_openai(cfg)
 
 
 def _structured(schema: type[BaseModel], provider: str):
-    return _get_llm(provider).with_structured_output(schema, method="function_calling")
+    return _build_llm(provider).with_structured_output(schema, method="function_calling")
 
 
 def correct_key_signature(raw_text: str, context: str, request_id: str, provider: str) -> KeyCorrectionResult:

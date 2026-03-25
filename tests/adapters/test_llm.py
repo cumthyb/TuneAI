@@ -60,7 +60,7 @@ class TestStructured:
     def test_always_uses_function_calling(self):
         mock_llm = MagicMock()
         mock_llm.with_structured_output.return_value = MagicMock()
-        with patch("tuneai.core.adapters.llm._get_llm", return_value=mock_llm):
+        with patch("tuneai.core.adapters.llm._build_llm", return_value=mock_llm):
             from tuneai.core.adapters.llm import _structured
             _structured(KeyCorrectionResult, "qwen")
         assert mock_llm.with_structured_output.call_args.kwargs.get("method") == "function_calling"

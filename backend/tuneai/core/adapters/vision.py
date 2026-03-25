@@ -20,21 +20,14 @@ _PROMPT = (
     "只回答调号本身，例如：1=G\n"
     "如果无法确认，回答：unknown"
 )
-_llm_instances: dict[tuple[str, str, str], object] = {}
-
-
-def _get_llm(provider: str):
+def _build_vision_llm(provider: str):
+    """根据 provider 创建 Vision LLM client 实例（每次调用创建新实例，无缓存）。"""
     cfg = get_vision_llm_config(provider)
     model = str(cfg.get("model")).strip()
     base_url = str(cfg.get("base_url")).strip()
     if not provider or not model or not base_url:
         raise ValueError("vision_llm provider/model/base_url must be configured")
-    key = (provider, model, base_url)
-    llm = _llm_instances.get(key)
-    if llm is None:
-        llm = build_chat_openai(cfg)
-        _llm_instances[key] = llm
-    return llm
+    return build_chat_openai(cfg)
 
 
 def recognize_key_signature(image: np.ndarray, provider: str) -> str:
@@ -46,7 +39,7 @@ def recognize_key_signature(image: np.ndarray, provider: str) -> str:
     b64 = base64.b64encode(buf.tobytes()).decode()
     from langchain_core.messages import HumanMessage
 
-    llm = _get_llm(provider)
+    llm = _build_vision_llm(provider)
     message = HumanMessage(
         content=[
             {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}"}},
@@ -100,7 +93,7 @@ def validate_score_with_vision(score: ScoreIR, original_image: np.ndarray, reque
     b64 = base64.b64encode(buf.tobytes()).decode()
     prompt = _VL_VALIDATE_PROMPT.format(source_key=score.source_key.tonic, target_key=score.target_key.tonic)
     from langchain_core.messages import HumanMessage
-    llm = _get_llm(provider)
+    llm = _build_vision_llm(provider)
     chain = llm.with_structured_output(VLValidationResult, method="function_calling")
     message = HumanMessage(
         content=[

@@ -117,8 +117,6 @@ function isApiMetaResponse(value: unknown): value is ApiMetaResponse {
   return (
     Array.isArray(r.allowed_image_types) &&
     typeof r.max_image_size_mb === 'number' &&
-    Array.isArray(r.providers) &&
-    typeof r.default_provider === 'string' &&
     Array.isArray(r.llm_providers) &&
     Array.isArray(r.vision_llm_providers) &&
     Array.isArray(r.ocr_providers) &&

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import json
+import re
 from typing import Any
 
 import cv2
@@ -65,13 +66,40 @@ def run_multimodal_ocr(image: np.ndarray, cfg: dict[str, Any], *, provider_label
     content = completion.choices[0].message.content
     if not isinstance(content, str) or not content.strip():
         raise ValueError("ocr response content must be a non-empty JSON string")
-    chars = _parse_ocr_response(content)
+    chars = _parse_ocr_response(_safe_json_parse(content))
     get_logger("ocr").debug(f"ocr({provider_label}): {len(chars)} chars recognized")
     return chars
 
 
-def _parse_ocr_response(content: str) -> list[OcrChar]:
-    data = json.loads(content)
+def _safe_json_parse(raw: str, retries: int = 1) -> dict[str, Any]:
+    """带清理和重试的 JSON 解析。处理 markdown code block 和截断情况。"""
+    # Step 1: 清理 markdown code block
+    cleaned = re.sub(r"```(?:json)?\n(.*?)\n```", r"\1", raw, flags=re.DOTALL)
+    cleaned = cleaned.strip()
+
+    # Step 2: 尝试直接解析
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError:
+        pass
+
+    # Step 3: 提取 JSON 对象（处理前后有文本的情况）
+    match = re.search(r"\{[\s\S]*\}", cleaned)
+    if match:
+        try:
+            return json.loads(match.group())
+        except json.JSONDecodeError:
+            pass
+
+    # Step 4: 重试（截断修复）
+    if retries > 0:
+        half = len(cleaned) // 2
+        return _safe_json_parse(cleaned[:half], retries - 1)
+
+    raise ValueError(f"Failed to parse OCR response after retries: {raw[:100]}")
+
+
+def _parse_ocr_response(data: dict[str, Any]) -> list[OcrChar]:
     if not isinstance(data, dict):
         raise ValueError("ocr response must be a JSON object")
     raw_chars = data.get("chars")
@@ -103,4 +131,6 @@ def _parse_ocr_response(content: str) -> list[OcrChar]:
         if c > 1:
             c = 1.0
         parsed.append(OcrChar(text=text, bbox=[x, y, w, h], confidence=c))
+    if not parsed:
+        raise ValueError("No valid characters in OCR response")
     return parsed

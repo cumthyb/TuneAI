@@ -70,16 +70,13 @@ def get_api_meta() -> ApiMetaResponse:
     llm_providers = _list_providers_with_llm()
     vision_providers = _list_providers_with_vision_llm()
     ocr_providers = _list_providers_with_ocr()
-    providers = sorted(set(llm_providers) & set(vision_providers) & set(ocr_providers))
+    # 不再用交集限制——三种能力解绑，各自独立
     default_llm_provider = _pick_default_provider(llm_providers, configured_default, "llm")
     default_vision_provider = _pick_default_provider(vision_providers, configured_default, "vision_llm")
     default_ocr_provider = _pick_default_provider(ocr_providers, configured_default, "ocr")
-    default_provider = _pick_default_provider(providers, configured_default, "llm+vision_llm+ocr")
     return ApiMetaResponse(
         allowed_image_types=sorted(_ALLOWED_CONTENT_TYPES),
         max_image_size_mb=int(get_pipeline_config()["max_image_size_mb"]),
-        providers=providers,
-        default_provider=default_provider,
         llm_providers=llm_providers,
         vision_llm_providers=vision_providers,
         ocr_providers=ocr_providers,
