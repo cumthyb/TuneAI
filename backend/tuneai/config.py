@@ -158,6 +158,9 @@ def _apply_env_overrides(cfg: dict[str, Any]) -> None:
     if default_provider not in providers:
         raise ValueError(f"default_provider is not registered: {default_provider}")
 
+    # Write back resolved default_provider (env override or original)
+    policy["default_provider"] = default_provider
+
     # per-provider env overrides
     text_provider = os.getenv("TUNEAI_LLM_PROVIDER", default_provider)
     vision_provider = os.getenv("TUNEAI_VISION_LLM_PROVIDER", default_provider)
@@ -221,6 +224,14 @@ def set_config(cfg: TuneAIConfig) -> None:
     """设置全局配置实例（用于测试注入）。"""
     global _config
     _config = cfg
+
+
+def reload_config() -> TuneAIConfig:
+    """清除全局缓存并重新加载 config.json。用于运行时热更新。"""
+    global _config
+    _config = None
+    _config = load_config()
+    return _config
 
 
 # ─── 各域配置访问器 ───────────────────────────────────────────────────────────

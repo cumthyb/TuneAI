@@ -15,6 +15,8 @@ from tuneai.logging_config import setup_logging, get_logger
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Config is loaded lazily on first get_config() call.
+    # Use tuneai.config.reload_config() to hot-reload without restart.
     log_cfg = get_logging_config()
     setup_logging(level=log_cfg["level"], fmt=log_cfg["format"])
     get_logger("main").info("TuneAI backend starting")

@@ -99,6 +99,14 @@ def run_integration(request):
         pytest.skip("requires --run-integration")
 
 
+@pytest.fixture(autouse=True, scope="function")
+def clean_config_fixture():
+    """每个测试函数结束后重置全局 config，确保测试间隔离。"""
+    yield
+    from tuneai.config import reset_config
+    reset_config()
+
+
 @pytest.fixture(autouse=True, scope="session")
 def setup_logging_once(ensure_test_config):
     """测试期间启用 human-readable 日志（stderr），跳过文件日志。"""

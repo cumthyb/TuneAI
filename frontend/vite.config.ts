@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import { readFileSync, existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -47,6 +48,11 @@ const { devPort, apiTarget } = loadAppConfig()
 
 export default defineConfig({
   plugins: [react()],
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    include: ['src/**/*.test.{ts,tsx}'],
+  },
   root: '.',
   css: {
     preprocessorOptions: {
