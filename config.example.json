@@ -8,7 +8,7 @@
     "dev_port": 5173
   },
   "provider_policy": {
-    "default_provider": "glm"
+    "default_provider": "minimax"
   },
   "providers": {
     "glm": {
@@ -71,6 +71,38 @@
         "api_key": "",
         "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
         "model": "qwen-vl-ocr-latest",
+        "timeout_seconds": 30,
+        "max_tokens": 4096
+      }
+    },
+    "minimax": {
+      "llm": {
+        "api_key": "",
+        "base_url": "https://api.minimaxi.com",
+        "model": "MiniMax-Text-01",
+        "temperature": 0.1,
+        "max_tokens": 1024,
+        "timeout_seconds": 30,
+        "client_class": "langchain_openai.ChatOpenAI",
+        "client_kwargs": {},
+        "model_kwargs": {},
+        "extra_body": {},
+        "disable_parallel_tool_calls": false
+      },
+      "vision_llm": {
+        "api_key": "",
+        "base_url": "https://api.minimaxi.com",
+        "model": "MiniMax-VL-01",
+        "timeout_seconds": 30,
+        "client_class": "langchain_openai.ChatOpenAI",
+        "client_kwargs": {},
+        "model_kwargs": {},
+        "extra_body": {}
+      },
+      "ocr": {
+        "api_key": "",
+        "base_url": "https://api.minimaxi.com",
+        "model": "MiniMax-VL-01",
         "timeout_seconds": 30,
         "max_tokens": 4096
       }
