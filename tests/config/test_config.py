@@ -27,12 +27,13 @@ class TestConfigEnvOverrides:
         monkeypatch.setenv("TUNEAI_VISION_LLM_MODEL", "qwen-vl-max")
 
         cfg = config_module.load_config()
-        assert cfg["providers"]["glm"]["llm"]["api_key"] == "llm_key"
-        assert cfg["providers"]["qwen"]["vision_llm"]["api_key"] == "v_key"
-        assert cfg["providers"]["glm"]["llm"]["base_url"] == "https://glm.example/v4"
-        assert cfg["providers"]["qwen"]["vision_llm"]["base_url"] == "https://qwen.example/v1"
-        assert cfg["providers"]["glm"]["llm"]["model"] == "glm-4.6"
-        assert cfg["providers"]["qwen"]["vision_llm"]["model"] == "qwen-vl-max"
+        d = cfg.model_dump()
+        assert d["providers"]["glm"]["llm"]["api_key"] == "llm_key"
+        assert d["providers"]["qwen"]["vision_llm"]["api_key"] == "v_key"
+        assert d["providers"]["glm"]["llm"]["base_url"] == "https://glm.example/v4"
+        assert d["providers"]["qwen"]["vision_llm"]["base_url"] == "https://qwen.example/v1"
+        assert d["providers"]["glm"]["llm"]["model"] == "glm-4.6"
+        assert d["providers"]["qwen"]["vision_llm"]["model"] == "qwen-vl-max"
 
     def test_ocr_env_overrides_target_provider(self, monkeypatch):
         base_cfg = {
@@ -51,9 +52,10 @@ class TestConfigEnvOverrides:
         monkeypatch.setenv("TUNEAI_OCR_MODEL", "glm-4.6v")
 
         cfg = config_module.load_config()
-        assert cfg["providers"]["qwen"]["ocr"]["api_key"] == "ocr_key"
-        assert cfg["providers"]["qwen"]["ocr"]["base_url"] == "https://ocr.example.com/v1"
-        assert cfg["providers"]["qwen"]["ocr"]["model"] == "glm-4.6v"
+        d = cfg.model_dump()
+        assert d["providers"]["qwen"]["ocr"]["api_key"] == "ocr_key"
+        assert d["providers"]["qwen"]["ocr"]["base_url"] == "https://ocr.example.com/v1"
+        assert d["providers"]["qwen"]["ocr"]["model"] == "glm-4.6v"
 
     def test_default_provider_can_be_overridden_by_env(self, monkeypatch):
         base_cfg = {
@@ -66,7 +68,7 @@ class TestConfigEnvOverrides:
         monkeypatch.setenv("TUNEAI_PROVIDER", "qwen")
 
         cfg = config_module.load_config()
-        assert cfg["provider_policy"]["default_provider"] == "qwen"
+        assert cfg.provider_policy.default_provider == "qwen"
 
     def test_invalid_port_env_raises(self, monkeypatch):
         base_cfg = {"server": {"port": 8000}, "provider_policy": {"default_provider": "glm"}, "providers": {"glm": {}}}
